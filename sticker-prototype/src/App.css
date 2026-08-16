@@ -49,7 +49,7 @@
 .package-header { width: 304px; height: 73px; left: 0; top: 0; z-index: 4; transition: opacity 140ms ease-out; }
 /* Only the front package shows its hang tab; stacked cards peek as plain packaging. */
 .sticker-package:not(.sticker-package--active) .package-header { opacity: 0; }
-.package-sticker { z-index: 2; width: 191px; max-width: 191px; max-height: 206px; left: 50%; top: 214.5px; transform: translate(-50%, -50%); object-fit: contain; }
+.package-sticker { z-index: 2; width: 201px; max-width: 201px; max-height: 216px; left: 50%; top: 214.5px; transform: translate(-50%, -50%); object-fit: contain; }
 .package-sticker--lifting { opacity: 0; }
 .sticker-details { position: absolute; top: 531px; left: 25px; right: 25px; height: 100px; text-align: center; opacity: 0; transform: translateY(8px); }
 .sticker-details--visible { animation: details-in 180ms ease-out both; }
@@ -139,7 +139,7 @@
   position: absolute;
   transform: translate(-50%, -50%);
   z-index: 2;
-  width: 58px;
+  width: 46px;
   height: auto;
   object-fit: contain;
   pointer-events: none;
