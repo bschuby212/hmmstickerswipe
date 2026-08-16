@@ -1,0 +1,19 @@
+# Dependencies and build
+node_modules/
+dist/
+dist-ssr/
+
+# Secrets and local env
+.env
+.env.*
+!.env.example
+*.pem
+
+# Logs and OS/editor
+logs/
+*.log
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.local

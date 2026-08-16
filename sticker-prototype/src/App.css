@@ -1,0 +1,260 @@
+.desktop-shell { min-height: 100svh; display: grid; place-items: center; overflow: hidden; background: #29292d; padding: 18px; }
+.phone-frame {
+  --phone-scale: min(1, (100svh - 36px) / 868px, (100vw - 36px) / 409px);
+  width: 409px;
+  height: 868px;
+  padding: 8px;
+  border-radius: 52px;
+  background: #080808;
+  box-shadow: 0 30px 80px #0009, inset 0 0 0 2px #3a3a3e;
+  transform: scale(var(--phone-scale));
+  transform-origin: center center;
+}
+.phone-screen { position: relative; width: 393px; height: 852px; overflow: hidden; border-radius: 45px; background: #fff; }
+.status-bar { position: absolute; z-index: 20; top: 0; left: 0; right: 0; height: 52px; padding: 15px 25px 0 32px; display: flex; align-items: flex-start; justify-content: space-between; color: #fff; font: 600 16px/1 -apple-system, sans-serif; pointer-events: none; }
+.status-bar--dark { color: #fff; }
+.dynamic-island { position: absolute; width: 124px; height: 35px; border-radius: 30px; background: #000; top: 11px; left: 50%; transform: translateX(-50%); }
+.status-icons { display: flex; align-items: center; gap: 7px; margin-top: 2px; }
+.status-icons svg { display: block; }
+/* Both screens are absolutely positioned so they occupy the same coordinate
+   space while they are mounted together during the transition — otherwise the
+   placement screen stacks a full screen height below and the sticker drops
+   toward a target that is off-screen. */
+.selection-screen {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  isolation: isolate;
+  color: #fff;
+  background-size: 393px 852px;
+  background-position: center top;
+  background-repeat: no-repeat;
+}
+.selection-screen::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(180deg, #0000 45%, #0008 76%, #000b); }
+.selection-screen--crossfading,
+.selection-screen--landing { opacity: 0; transition: opacity 200ms ease-out; pointer-events: none; }
+.carousel { position: absolute; top: 86px; left: 0; right: 0; height: 390px; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
+.carousel--loading .sticker-package { visibility: hidden; }
+.carousel:active { cursor: grabbing; }
+.sticker-package { position: absolute; top: 8px; left: 50%; width: 305px; height: 350px; margin-left: -152.5px; pointer-events: none; z-index: calc(5 - var(--stack-index)); }
+.deal-animation-wrapper { width: 100%; height: 100%; will-change: transform, opacity; }
+.sticker-package--dealing .deal-animation-wrapper { opacity: 0; animation: deal-in 460ms cubic-bezier(.22,.8,.28,1) var(--deal-delay) both; }
+.drag-animation-wrapper { position: relative; width: 100%; height: 100%; transform: translate3d(calc(var(--stack-index) * 7px), calc(var(--stack-index) * 5px), 0) rotate(calc(var(--stack-index) * 1.4deg)) scale(calc(1 - var(--stack-index) * .025)); opacity: calc(1 - var(--stack-index) * .18); will-change: transform, opacity; }
+.package-layer-wrapper { position: relative; width: 100%; height: 100%; }
+.sticker-package--active { z-index: 5; }
+.sticker-package img { position: absolute; object-fit: contain; user-select: none; -webkit-user-drag: none; }
+.package-back { width: 304px; height: 358px; top: 0; left: 0.5px; opacity: 1; }
+.package-front { width: 301px; height: 283px; top: 73px; left: 2px; opacity: 1; z-index: 3; }
+.sticker-package--transitioning .package-front { opacity: 1; }
+.package-header { width: 304px; height: 73px; left: 0; top: 0; z-index: 4; transition: opacity 140ms ease-out; }
+/* Only the front package shows its hang tab; stacked cards peek as plain packaging. */
+.sticker-package:not(.sticker-package--active) .package-header { opacity: 0; }
+.package-sticker { z-index: 2; width: 191px; max-width: 191px; max-height: 206px; left: 50%; top: 214.5px; transform: translate(-50%, -50%); object-fit: contain; }
+.package-sticker--lifting { opacity: 0; }
+.sticker-details { position: absolute; top: 531px; left: 25px; right: 25px; height: 100px; text-align: center; opacity: 0; transform: translateY(8px); }
+.sticker-details--visible { animation: details-in 180ms ease-out both; }
+.sticker-details--leaving { animation: details-out 70ms ease-out both; }
+.sticker-details h1 { margin: 0 0 12px; font-size: 22px; font-weight: 600; line-height: 1.2; letter-spacing: -.5px; }
+.sticker-details p { margin: 0 auto; max-width: 341px; font-size: 18px; font-weight: 400; line-height: 1.4; letter-spacing: -.5px; }
+.select-sticker-button {
+  position: absolute;
+  top: 645px;
+  left: 50%;
+  transform: translateX(-50%);
+  height: 36px;
+  min-width: 123px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 16px;
+  background: #765cd8;
+  color: #fcfcfc;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 180ms ease-out 80ms;
+}
+.select-sticker-button--visible { opacity: 1; }
+.select-sticker-button:disabled { cursor: default; }
+.select-sticker-button--visible:disabled { opacity: .5; }
+
+.placement-screen {
+  position: absolute;
+  inset: 0;
+  background: #faf8f7;
+  color: #063235;
+  overflow: hidden;
+}
+.placement-screen--lifting { opacity: 0; pointer-events: none; }
+.placement-screen--crossfading,
+.placement-screen--landing { opacity: 1; transition: opacity 200ms ease-out; }
+.placement-screen--transitioning .placed-sticker { opacity: 0; }
+.van-scene {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 393px;
+  height: 507px;
+  overflow: hidden;
+  background: #c4c1cd;
+}
+.campground {
+  position: absolute;
+  left: 0;
+  top: -353px;
+  width: 393px;
+  height: 861px;
+  max-width: none;
+  display: block;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+.alpha-canvas { display: none; }
+.van-transform {
+  position: absolute;
+  left: -267px;
+  top: 24px;
+  width: 939px;
+  height: 533px;
+  will-change: transform;
+  touch-action: none;
+}
+.van {
+  position: absolute;
+  inset: 0;
+  width: 939px;
+  height: 533px;
+  max-width: none;
+  display: block;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+.van:active { cursor: grabbing; }
+.placed-sticker {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+  width: 58px;
+  height: auto;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  transition: left 200ms cubic-bezier(.22,.8,.28,1), top 200ms cubic-bezier(.22,.8,.28,1);
+}
+.van-transform--dragging .placed-sticker {
+  transition: none;
+}
+.sticker-transition-overlay {
+  position: absolute;
+  z-index: 30;
+  left: var(--source-left);
+  top: var(--source-top);
+  width: var(--source-width);
+  height: var(--source-height);
+  pointer-events: none;
+  transform: translate3d(0, 0, 0);
+  transform-origin: center;
+  will-change: transform;
+}
+.sticker-transition-overlay img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.sticker-transition-overlay--lifting,
+.sticker-transition-overlay--crossfading {
+  transform: translate3d(0, calc(var(--lift) * -1), 0) rotate(1.5deg) scale(1.06);
+}
+.sticker-transition-overlay--lifting { animation: sticker-lift var(--lift-duration) cubic-bezier(.22,.8,.28,1) both; }
+.sticker-transition-overlay--crossfading { transition: none; }
+.sticker-transition-overlay--landing {
+  transform: translate3d(var(--landing-x), var(--landing-y), 0) rotate(0) scale(var(--target-scale));
+  /* Weighted fall: eases in so the sticker gathers speed, then settles onto
+     the van instead of drifting the last few pixels. */
+  transition: transform var(--drop-duration) cubic-bezier(.4,.05,.25,1);
+}
+.placement-panel {
+  position: absolute;
+  top: 507px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 345px;
+  background: #faf8f7;
+  border-radius: 30px 30px 0 0;
+}
+.placement-content {
+  position: absolute;
+  top: 35px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  pointer-events: none;
+}
+.placement-content h1 {
+  margin: 0 0 12px;
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.5px;
+  color: #063235;
+}
+.placement-content p {
+  margin: 0 auto 12px;
+  max-width: 303px;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.4;
+  letter-spacing: -0.5px;
+  color: #063235;
+}
+.placement-actions {
+  position: absolute;
+  left: 32px;
+  right: 32px;
+  bottom: 23px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.place-sticker-button,
+.save-for-later-button {
+  width: 329px;
+  height: 48px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+  cursor: pointer;
+}
+.place-sticker-button {
+  border: 0;
+  background: #765cd8;
+  color: #fff;
+}
+.save-for-later-button {
+  border: 2px solid #7960d9;
+  background: transparent;
+  color: #7960d9;
+}
+
+@keyframes deal-in {
+  0% { opacity: 0; transform: translate3d(var(--deal-x), var(--deal-y), 0) rotate(var(--deal-rotation)) scale(var(--deal-scale)); }
+  48% { opacity: 1; }
+  82% { opacity: 1; transform: translate3d(0, -4px, 0) rotate(0) scale(1.012); }
+  100% { opacity: 1; transform: translate3d(0, 0, 0) rotate(0) scale(1); }
+}
+@keyframes details-in { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: translateY(0) } }
+@keyframes details-out { to { opacity: 0; transform: translateY(-3px) } }
+@keyframes sticker-lift {
+  from { transform: translate3d(0, 0, 0) rotate(0) scale(1); }
+  to { transform: translate3d(0, calc(var(--lift) * -1), 0) rotate(1.5deg) scale(1.06); }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 1ms !important; }
+  .sticker-package--dealing .deal-animation-wrapper { animation: deal-reduced 200ms ease-out var(--deal-delay) both; }
+  .sticker-transition-overlay { display: none; }
+}
+@keyframes deal-reduced { from { opacity: 0; } to { opacity: 1; } }
