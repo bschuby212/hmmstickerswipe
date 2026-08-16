@@ -33,7 +33,7 @@
 .selection-screen::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(180deg, #0000 45%, #0008 76%, #000b); }
 .selection-screen--crossfading,
 .selection-screen--landing { opacity: 0; transition: opacity 200ms ease-out; pointer-events: none; }
-.carousel { position: absolute; top: 86px; left: 0; right: 0; height: 390px; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
+.carousel { position: absolute; top: 138px; left: 0; right: 0; height: 390px; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
 .carousel--loading .sticker-package { visibility: hidden; }
 .carousel:active { cursor: grabbing; }
 .sticker-package { position: absolute; top: 8px; left: 50%; width: 305px; height: 350px; margin-left: -152.5px; pointer-events: none; z-index: calc(5 - var(--stack-index)); }
@@ -51,14 +51,14 @@
 .sticker-package:not(.sticker-package--active) .package-header { opacity: 0; }
 .package-sticker { z-index: 2; width: 201px; max-width: 201px; max-height: 216px; left: 50%; top: 214.5px; transform: translate(-50%, -50%); object-fit: contain; }
 .package-sticker--lifting { opacity: 0; }
-.sticker-details { position: absolute; top: 531px; left: 25px; right: 25px; height: 100px; text-align: center; opacity: 0; transform: translateY(8px); }
+.sticker-details { position: absolute; top: 552px; left: 25px; right: 25px; height: 100px; text-align: center; opacity: 0; transform: translateY(8px); }
 .sticker-details--visible { animation: details-in 180ms ease-out both; }
 .sticker-details--leaving { animation: details-out 70ms ease-out both; }
 .sticker-details h1 { margin: 0 0 12px; font-size: 22px; font-weight: 600; line-height: 1.2; letter-spacing: -.5px; }
 .sticker-details p { margin: 0 auto; max-width: 341px; font-size: 18px; font-weight: 400; line-height: 1.4; letter-spacing: -.5px; }
 .select-sticker-button {
   position: absolute;
-  top: 645px;
+  top: 666px;
   left: 50%;
   transform: translateX(-50%);
   height: 36px;
