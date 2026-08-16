@@ -18,16 +18,16 @@ import campground from './assets/placement/campground.png'
 import vanArt from './assets/placement/van.png'
 import './App.css'
 
-const VAN_INITIAL_LEFT = -267
-const VAN_WIDTH = 939
-const VAN_HEIGHT = 533
+const VAN_INITIAL_LEFT = -330
+const VAN_WIDTH = 1062
+const VAN_HEIGHT = 603
 const SCENE_WIDTH = 393
 const VAN_VISIBLE_MIN = 140
-const STICKER_DEFAULT_POSITION = { x: 430, y: 332 }
-// Coordinates are measured in the 939 × 533 van artwork. This keeps the
+const STICKER_DEFAULT_POSITION = { x: 487, y: 376 }
+// Coordinates are measured in the van artwork display size. This keeps the
 // sticker on the painted body from the rear bumper through the front bumper,
 // below the windows and above the wheel wells.
-const STICKER_BOUNDS = { minX: 90, maxX: 870, minY: 292, maxY: 382 }
+const STICKER_BOUNDS = { minX: 101, maxX: 984, minY: 331, maxY: 432 }
 
 type StickerPosition = {
   x: number
@@ -665,7 +665,6 @@ function PlacementContent() {
   return (
     <div className="placement-content">
       <h1>Place Your Sticker</h1>
-      <p>Pick where your sticker belongs on the van and celebrate how far you’ve come.</p>
       <p>Drag your van to adjust the view, then tap where you want to place the sticker.</p>
     </div>
   )
