@@ -38,7 +38,7 @@
 .carousel:active { cursor: grabbing; }
 .sticker-package { position: absolute; top: 8px; left: 50%; width: 305px; height: 350px; margin-left: -152.5px; pointer-events: none; z-index: calc(5 - var(--stack-index)); }
 .deal-animation-wrapper { width: 100%; height: 100%; will-change: transform, opacity; }
-.sticker-package--dealing .deal-animation-wrapper { opacity: 0; animation: deal-in 460ms cubic-bezier(.22,.8,.28,1) var(--deal-delay) both; }
+.sticker-package--dealing .deal-animation-wrapper { opacity: 0; animation: deal-in 600ms cubic-bezier(.22,.8,.28,1) var(--deal-delay) both; }
 .drag-animation-wrapper { position: relative; width: 100%; height: 100%; transform: translate3d(calc(var(--stack-index) * 7px), calc(var(--stack-index) * 5px), 0) rotate(calc(var(--stack-index) * 1.4deg)) scale(calc(1 - var(--stack-index) * .025)); opacity: calc(1 - var(--stack-index) * .18); will-change: transform, opacity; }
 .package-layer-wrapper { position: relative; width: 100%; height: 100%; }
 .sticker-package--active { z-index: 5; }
@@ -83,6 +83,7 @@
 .placement-screen {
   position: absolute;
   inset: 0;
+  z-index: 15;
   background: #faf8f7;
   color: #063235;
   overflow: hidden;
@@ -99,6 +100,19 @@
   height: 539px;
   overflow: hidden;
   background: #c4c1cd;
+}
+.van-scene--faded .placed-sticker {
+  opacity: 0.72;
+  filter: saturate(0.85);
+  transition: opacity 320ms ease-out, filter 320ms ease-out, width 320ms ease-out;
+}
+.van-scene--placed .placed-sticker {
+  opacity: 1;
+  filter: none;
+  width: 58px;
+}
+.van-transform--locked .van {
+  cursor: default;
 }
 .campground {
   position: absolute;
@@ -202,7 +216,7 @@
   color: #063235;
 }
 .placement-content p {
-  margin: 0 auto 28px;
+  margin: 0 auto;
   max-width: 303px;
   font-size: 16px;
   font-weight: 400;
@@ -214,7 +228,8 @@
   position: absolute;
   left: 32px;
   right: 32px;
-  bottom: 28px;
+  top: 168px;
+  bottom: auto;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -240,10 +255,402 @@
   color: #7960d9;
 }
 
+/* —— Drive-off (Close the Day) —— */
+.drive-off-screen {
+  position: absolute;
+  inset: 0;
+  z-index: 16;
+  overflow: hidden;
+  background: #c5d4e8;
+}
+.drive-off-coast {
+  position: absolute;
+  left: -89px;
+  top: -360px;
+  width: 572px;
+  height: 1240px;
+  max-width: none;
+  display: block;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+.drive-off-van-wrap {
+  position: absolute;
+  left: 8px;
+  top: 354px;
+  width: 374px;
+  height: 212px;
+  will-change: transform;
+  animation: drive-off-exit 2.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+.drive-off-van {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+.drive-off-sticker {
+  position: absolute;
+  left: 48%;
+  top: 52%;
+  width: 58px;
+  height: auto;
+  transform: translate(-50%, -50%);
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  filter: drop-shadow(0 2px 4px #0005);
+}
+@keyframes drive-off-exit {
+  0% { transform: translate3d(0, 0, 0); }
+  12% { transform: translate3d(0, 0, 0); }
+  100% { transform: translate3d(120%, 0, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .drive-off-van-wrap { animation-duration: 1ms; }
+}
+
+/* —— Map stage —— */
+.map-screen {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #c5d4a8;
+  z-index: 1;
+}
+.map-screen .status-bar {
+  color: #000;
+  z-index: 6;
+}
+.map-art {
+  position: absolute;
+  left: 0;
+  top: -54px;
+  width: 393px;
+  height: 906px;
+  max-width: none;
+  display: block;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+.map-header {
+  position: absolute;
+  z-index: 5;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 119px;
+  padding: 63px 16px 0 18px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  box-sizing: border-box;
+  background: rgba(249, 247, 246, 0.8);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  color: #063235;
+  -webkit-font-smoothing: antialiased;
+}
+.map-back {
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 12px;
+  background: #f1f1f1;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  cursor: pointer;
+}
+.map-back img {
+  width: 8px;
+  height: 14px;
+  display: block;
+  transform: rotate(180deg);
+}
+.map-header-copy {
+  flex: 1;
+  text-align: center;
+  padding: 2px 8px 0;
+}
+.map-header-copy h1 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.5px;
+  color: #063235;
+}
+.map-header-copy p {
+  margin: 5px 0 0;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.2;
+  color: #737272;
+}
+.map-miles {
+  width: 42px;
+  flex-shrink: 0;
+  padding-top: 10px;
+  text-align: right;
+  color: #063235;
+  white-space: nowrap;
+}
+.map-miles-value {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+}
+.map-miles-unit {
+  display: inline-block;
+  margin-left: 2px;
+  font-size: 10px;
+  font-weight: 700;
+  opacity: 0.5;
+  vertical-align: 1px;
+}
+.map-van {
+  position: absolute;
+  z-index: 3;
+  width: 215px;
+  height: 218px;
+  margin-left: -107.5px;
+  margin-top: -109px;
+  transform-origin: center center;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  image-rendering: auto;
+}
+.map-dim {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  background: #0006;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 280ms ease-out;
+}
+.map-dim--visible {
+  opacity: 1;
+}
+
+/* —— Selection sheet over map (map-peek bottom sheet) —— */
+.selection-sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 12;
+  overflow: hidden;
+  transform: translateY(100%);
+  transition: transform 650ms cubic-bezier(.22, 1, .36, 1), top 650ms cubic-bezier(.22, 1, .36, 1);
+  border-radius: 28px 28px 0 0;
+  box-shadow:
+    0 -2px 4px rgba(0, 0, 0, 0.1),
+    0 -7px 7px rgba(0, 0, 0, 0.09),
+    0 -16px 10px rgba(0, 0, 0, 0.05);
+}
+.selection-sheet--open {
+  top: 24px;
+  transform: translateY(0);
+}
+.selection-screen--sheet {
+  border-radius: 28px 28px 0 0;
+  display: flex;
+  flex-direction: column;
+}
+.selection-sheet-layout {
+  box-sizing: border-box;
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* Top inset = side inset for 357px plaque on 393: 18px */
+  padding: 18px 0 32px;
+  gap: 0;
+}
+.selection-sheet-section {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+}
+.selection-sheet-section--sign {
+  width: 357px;
+  margin-bottom: 56px;
+}
+.selection-sheet-section--pack {
+  flex: 0 0 auto;
+  gap: 32px;
+  justify-content: flex-start;
+  margin-bottom: 40px;
+}
+.selection-sheet-section--actions {
+  width: 340px;
+  margin-top: auto;
+  gap: 16px;
+  opacity: 0;
+  transition: opacity 280ms ease-out;
+}
+.selection-sheet-actions--visible {
+  opacity: 1;
+}
+.selection-screen--sheet .west-falls-banner {
+  position: relative;
+  z-index: 6;
+  width: 357px;
+  height: 79px;
+  margin: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 240ms ease-out;
+  display: grid;
+  place-items: center;
+}
+.selection-screen--sheet-open .west-falls-banner {
+  opacity: 1;
+}
+.selection-screen--sheet .west-falls-banner img {
+  position: relative;
+  inset: auto;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.28));
+}
+.selection-screen--sheet .carousel {
+  position: relative;
+  top: auto;
+  left: auto;
+  right: auto;
+  width: 100%;
+  height: 360px;
+  flex-shrink: 0;
+}
+.selection-screen--sheet .sticker-package {
+  top: 4px;
+  width: 305px;
+  height: 350px;
+  margin-left: -152.5px;
+}
+.selection-screen--sheet .package-back {
+  width: 304px;
+  height: 358px;
+}
+.selection-screen--sheet .package-front {
+  width: 301px;
+  height: 283px;
+  top: 73px;
+}
+.selection-screen--sheet .package-header {
+  width: 304px;
+  height: 73px;
+}
+.selection-screen--sheet .package-sticker {
+  width: 201px;
+  max-width: 201px;
+  max-height: 216px;
+  top: 214.5px;
+}
+/* Only the front pack shows a hang tab — stacked backs stay plain packaging. */
+.selection-screen--sheet .sticker-package:not(.sticker-package--active) .package-header {
+  opacity: 0;
+  visibility: hidden;
+}
+.selection-screen--sheet .sticker-details {
+  position: relative;
+  top: auto;
+  left: auto;
+  right: auto;
+  width: 100%;
+  max-width: 341px;
+  height: auto;
+  padding: 0 26px;
+  box-sizing: border-box;
+  opacity: 0;
+  transform: none;
+  transition: opacity 280ms ease-out;
+  flex-shrink: 0;
+}
+.selection-screen--sheet .sticker-details--visible {
+  animation: none;
+  opacity: 1;
+}
+.selection-screen--sheet .sticker-details--leaving {
+  animation: none;
+  opacity: 0;
+}
+.selection-screen--sheet .sticker-details h1,
+.selection-screen--sheet .sticker-details p {
+  color: #fff;
+}
+.selection-screen--sheet .sticker-details h1 {
+  margin: 0 0 12px;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+}
+.selection-screen--sheet .sticker-details p {
+  font-size: 16px;
+  line-height: 1.4;
+  max-width: 320px;
+}
+.selection-screen--sheet .select-sticker-button--sheet {
+  position: static;
+  top: auto;
+  left: auto;
+  bottom: auto;
+  width: 340px;
+  min-width: 340px;
+  height: 48px;
+  border-radius: 12px;
+  background: #7960d9;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+  transform: none;
+  opacity: 1;
+  transition: none;
+}
+.selection-screen--sheet .select-sticker-button--sheet:disabled {
+  opacity: 0.5;
+}
+.save-for-later-sheet-button {
+  width: 340px;
+  height: 48px;
+  border-radius: 12px;
+  border: 2px solid #7960d9;
+  background: transparent;
+  color: #7960d9;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+  cursor: pointer;
+}
+.save-for-later-sheet-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 @keyframes deal-in {
   0% { opacity: 0; transform: translate3d(var(--deal-x), var(--deal-y), 0) rotate(var(--deal-rotation)) scale(var(--deal-scale)); }
-  48% { opacity: 1; }
-  82% { opacity: 1; transform: translate3d(0, -4px, 0) rotate(0) scale(1.012); }
+  35% { opacity: 1; }
+  72% { opacity: 1; transform: translate3d(0, -10px, 0) rotate(calc(var(--deal-rotation) * 0.12)) scale(1.03); }
   100% { opacity: 1; transform: translate3d(0, 0, 0) rotate(0) scale(1); }
 }
 @keyframes details-in { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: translateY(0) } }

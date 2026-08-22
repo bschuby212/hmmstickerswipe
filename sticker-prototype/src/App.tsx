@@ -16,6 +16,12 @@ import {
 } from './data/stickers'
 import campground from './assets/placement/campground.png'
 import vanArt from './assets/placement/van.png'
+import mapArt from './assets/map/map.png'
+import mapVanArt from './assets/map/map-van.png'
+import backChevron from './assets/map/back-chevron.svg'
+import westFallsBanner from './assets/selection/west-falls-banner.png'
+import driveOffCoast from './assets/drive-off/coast.png'
+import driveOffVan from './assets/drive-off/side-van.png'
 import './App.css'
 
 const VAN_INITIAL_LEFT = -330
@@ -29,9 +35,167 @@ const STICKER_DEFAULT_POSITION = { x: 487, y: 376 }
 // below the windows and above the wheel wells.
 const STICKER_BOUNDS = { minX: 101, maxX: 984, minY: 331, maxY: 432 }
 
+/** Phone-space waypoints along the road from the yellow star to the grey stand star. */
+const MAP_VAN_PATH = [
+  { x: 302, y: 695 },
+  { x: 298, y: 636 },
+  { x: 282, y: 576 },
+  { x: 240, y: 516 },
+  { x: 188, y: 456 },
+  { x: 147, y: 396 },
+  { x: 123, y: 366 },
+  { x: 119, y: 340 },
+]
+const MAP_DRIVE_MS = 5200
+/** Top-down sprite nose points roughly top-left at rest (~-135°). */
+const MAP_VAN_HEADING_OFFSET = 135
+
 type StickerPosition = {
   x: number
   y: number
+}
+
+type MapPoint = { x: number; y: number }
+
+function easeInOutCubic(t: number) {
+  return t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2
+}
+
+function buildPathMetrics(points: MapPoint[]) {
+  const segmentLengths: number[] = []
+  let total = 0
+  for (let i = 0; i < points.length - 1; i += 1) {
+    const dx = points[i + 1].x - points[i].x
+    const dy = points[i + 1].y - points[i].y
+    const length = Math.hypot(dx, dy)
+    segmentLengths.push(length)
+    total += length
+  }
+  return { segmentLengths, total }
+}
+
+function samplePath(points: MapPoint[], distance: number) {
+  const { segmentLengths, total } = buildPathMetrics(points)
+  if (total <= 0) {
+    return { point: points[0], angle: 0 }
+  }
+  let remaining = Math.max(0, Math.min(distance, total))
+  for (let i = 0; i < segmentLengths.length; i += 1) {
+    const length = segmentLengths[i]
+    if (remaining <= length || i === segmentLengths.length - 1) {
+      const t = length === 0 ? 0 : remaining / length
+      const a = points[i]
+      const b = points[i + 1]
+      const dx = b.x - a.x
+      const dy = b.y - a.y
+      return {
+        point: { x: a.x + dx * t, y: a.y + dy * t },
+        angle: (Math.atan2(dy, dx) * 180) / Math.PI,
+      }
+    }
+    remaining -= length
+  }
+  const last = points[points.length - 1]
+  const prev = points[points.length - 2]
+  return {
+    point: last,
+    angle: (Math.atan2(last.y - prev.y, last.x - prev.x) * 180) / Math.PI,
+  }
+}
+
+function MapScreen({
+  dimmed,
+  skipDrive = false,
+  onArrived,
+}: {
+  dimmed: boolean
+  skipDrive?: boolean
+  onArrived: () => void
+}) {
+  const start = MAP_VAN_PATH[0]
+  const end = MAP_VAN_PATH[MAP_VAN_PATH.length - 1]
+  const endPrev = MAP_VAN_PATH[MAP_VAN_PATH.length - 2]
+  const endAngle =
+    (Math.atan2(end.y - endPrev.y, end.x - endPrev.x) * 180) / Math.PI + MAP_VAN_HEADING_OFFSET
+  const [pose, setPose] = useState({
+    x: skipDrive ? end.x : start.x,
+    y: skipDrive ? end.y : start.y,
+    angle: skipDrive ? endAngle : MAP_VAN_HEADING_OFFSET,
+  })
+  const arrivedRef = useRef(skipDrive)
+  const onArrivedRef = useRef(onArrived)
+  onArrivedRef.current = onArrived
+
+  useEffect(() => {
+    if (skipDrive) return
+
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (reducedMotion) {
+      setPose({ x: end.x, y: end.y, angle: endAngle })
+      if (!arrivedRef.current) {
+        arrivedRef.current = true
+        onArrivedRef.current()
+      }
+      return
+    }
+
+    const { total } = buildPathMetrics(MAP_VAN_PATH)
+    let frame = 0
+    const started = performance.now()
+
+    const tick = (now: number) => {
+      const t = easeInOutCubic(Math.min(1, (now - started) / MAP_DRIVE_MS))
+      const { point, angle } = samplePath(MAP_VAN_PATH, total * t)
+      setPose({
+        x: point.x,
+        y: point.y,
+        angle: angle + MAP_VAN_HEADING_OFFSET,
+      })
+      if (t < 1) {
+        frame = window.requestAnimationFrame(tick)
+        return
+      }
+      if (!arrivedRef.current) {
+        arrivedRef.current = true
+        onArrivedRef.current()
+      }
+    }
+
+    frame = window.requestAnimationFrame(tick)
+    return () => window.cancelAnimationFrame(frame)
+  }, [skipDrive, end.x, end.y, endAngle])
+
+  return (
+    <section className="map-screen" aria-label="Mind map">
+      <img className="map-art" src={mapArt} alt="" draggable={false} />
+      <img
+        className="map-van"
+        src={mapVanArt}
+        alt="Your van"
+        draggable={false}
+        style={{
+          left: pose.x,
+          top: pose.y,
+          transform: `rotate(${pose.angle}deg)`,
+        }}
+      />
+      <StatusBar />
+      <header className="map-header">
+        <button type="button" className="map-back" aria-label="Back">
+          <img src={backChevron} alt="" draggable={false} />
+        </button>
+        <div className="map-header-copy">
+          <h1>Your Mind Map</h1>
+          <p>Now in Starter County</p>
+        </div>
+        <div className="map-miles" aria-hidden>
+          <span className="map-miles-value">823</span>
+          <span className="map-miles-unit">MI</span>
+        </div>
+      </header>
+      <div className={`map-dim${dimmed ? ' map-dim--visible' : ''}`} aria-hidden />
+    </section>
+  )
 }
 
 function IPhoneFrame({ children }: { children: React.ReactNode }) {
@@ -120,11 +284,11 @@ function StickerPackage({
       style={
         {
           '--stack-index': index,
-          '--deal-delay': `${(2 - index) * 90}ms`,
-          '--deal-x': `${[-70, 65, -45][index]}px`,
-          '--deal-y': `${[-32, -26, -38][index]}px`,
-          '--deal-rotation': `${[-6, 5, -4][index]}deg`,
-          '--deal-scale': [0.94, 0.95, 0.96][index],
+          '--deal-delay': `${(2 - index) * 120}ms`,
+          '--deal-x': `${[-110, 120, -95][index]}px`,
+          '--deal-y': `${[-70, -55, -85][index]}px`,
+          '--deal-rotation': `${[-12, 11, -10][index]}deg`,
+          '--deal-scale': [0.92, 0.93, 0.92][index],
         } as CSSProperties
       }
       aria-hidden={!active}
@@ -175,12 +339,14 @@ function StickerCarousel({
   activeStickerRef,
   disabled,
   onIntroComplete,
+  dealGate = true,
 }: {
   activeIndex: number
   onChange: (index: number) => void
   activeStickerRef: (element: HTMLImageElement | null) => void
   disabled: boolean
   onIntroComplete: () => void
+  dealGate?: boolean
 }) {
   const [dealStarted, setDealStarted] = useState(false)
   const [isIntroComplete, setIntroComplete] = useState(false)
@@ -197,12 +363,35 @@ function StickerCarousel({
   }, [activeIndex])
 
   useEffect(() => {
+    if (!dealGate) return
     if (introStarted.current) return
     introStarted.current = true
     const sources = [
       sharedPackage.packageHeader,
       ...stickerSets.flatMap((set) => [set.packageBack, set.stickerArt, set.packageFront]),
     ]
+    let completeTimer: number | null = null
+    // Back→front: max stagger 240ms + 600ms deal + settle buffer.
+    const DEAL_COMPLETE_MS = 240 + 600 + 80
+
+    const startDeal = () => {
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        setDealStarted(true)
+        completeTimer = window.setTimeout(() => {
+          setIntroComplete(true)
+          locked.current = false
+          onIntroComplete()
+        }, 200)
+        return
+      }
+      setDealStarted(true)
+      completeTimer = window.setTimeout(() => {
+        setIntroComplete(true)
+        locked.current = false
+        onIntroComplete()
+      }, DEAL_COMPLETE_MS)
+    }
+
     Promise.all(
       sources.map(
         (src) =>
@@ -214,27 +403,14 @@ function StickerCarousel({
           }),
       ),
     ).then(() => {
-      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-        setDealStarted(true)
-        window.setTimeout(() => {
-          setIntroComplete(true)
-          locked.current = false
-          onIntroComplete()
-        }, 200)
-        return
-      }
-      setDealStarted(true)
-      window.setTimeout(() => {
-        setIntroComplete(true)
-        locked.current = false
-        onIntroComplete()
-      }, 650)
+      startDeal()
     })
     return () => {
       if (frame.current) cancelAnimationFrame(frame.current)
       if (settleTimer.current) window.clearTimeout(settleTimer.current)
+      if (completeTimer) window.clearTimeout(completeTimer)
     }
-  }, [onIntroComplete])
+  }, [dealGate, onIntroComplete])
 
   const elementFor = (index: number) => packageRefs.current.get(stickerSets[index].id)
 
@@ -421,18 +597,20 @@ function SelectStickerButton({
   onSelectSticker,
   disabled,
   visible,
+  asSheet = false,
 }: {
   onSelectSticker: () => void
   disabled: boolean
   visible: boolean
+  asSheet?: boolean
 }) {
   return (
     <button
-      className={`select-sticker-button${visible ? ' select-sticker-button--visible' : ''}`}
+      className={`select-sticker-button${asSheet ? ' select-sticker-button--sheet' : ''}${visible ? ' select-sticker-button--visible' : ''}`}
       onClick={onSelectSticker}
       disabled={disabled || !visible}
     >
-      Select Sticker
+      {asSheet ? 'Select This Sticker' : 'Select Sticker'}
     </button>
   )
 }
@@ -441,32 +619,85 @@ function StickerSelectionScreen({
   activeIndex,
   onChange,
   onSelectSticker,
+  onSaveForLater,
   activeStickerRef,
   isTransitioning,
   transitionStage,
+  asSheet = false,
+  sheetOpen = false,
+  sheetReady = false,
 }: {
   activeIndex: number
   onChange: (index: number) => void
   onSelectSticker: () => void
+  onSaveForLater?: () => void
   activeStickerRef: (element: HTMLImageElement | null) => void
   isTransitioning: boolean
   transitionStage: TransitionStage
+  asSheet?: boolean
+  sheetOpen?: boolean
+  sheetReady?: boolean
 }) {
   const [isIntroComplete, setIntroComplete] = useState(false)
+  const carousel = (
+    <StickerCarousel
+      activeIndex={activeIndex}
+      onChange={onChange}
+      activeStickerRef={activeStickerRef}
+      disabled={isTransitioning}
+      dealGate={asSheet ? sheetReady : true}
+      onIntroComplete={() => setIntroComplete(true)}
+    />
+  )
+  const details = <StickerDetails set={stickerSets[activeIndex]} visible={isIntroComplete} />
+
+  if (asSheet) {
+    return (
+      <div
+        className={`selection-screen selection-screen--sheet${sheetOpen ? ' selection-screen--sheet-open' : ''}${transitionStage !== 'idle' ? ` selection-screen--${transitionStage}` : ''}`}
+        style={{ backgroundImage: `url(${selectionBackground})` }}
+      >
+        <div className="selection-sheet-layout">
+          <section className="selection-sheet-section selection-sheet-section--sign">
+            <div className="west-falls-banner">
+              <img src={westFallsBanner} alt="West Falls Sticker Stand" draggable={false} />
+            </div>
+          </section>
+          <section className="selection-sheet-section selection-sheet-section--pack">
+            {carousel}
+            {details}
+          </section>
+          <section
+            className={`selection-sheet-section selection-sheet-section--actions${isIntroComplete ? ' selection-sheet-actions--visible' : ''}`}
+          >
+            <SelectStickerButton
+              onSelectSticker={onSelectSticker}
+              disabled={isTransitioning}
+              visible={isIntroComplete}
+              asSheet
+            />
+            <button
+              type="button"
+              className="save-for-later-sheet-button"
+              onClick={onSaveForLater}
+              disabled={isTransitioning || !isIntroComplete}
+            >
+              Save For Later
+            </button>
+          </section>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div
       className={`selection-screen${transitionStage !== 'idle' ? ` selection-screen--${transitionStage}` : ''}`}
       style={{ backgroundImage: `url(${selectionBackground})` }}
     >
       <StatusBar />
-      <StickerCarousel
-        activeIndex={activeIndex}
-        onChange={onChange}
-        activeStickerRef={activeStickerRef}
-        disabled={isTransitioning}
-        onIntroComplete={() => setIntroComplete(true)}
-      />
-      <StickerDetails set={stickerSets[activeIndex]} visible={isIntroComplete} />
+      {carousel}
+      {details}
       <SelectStickerButton
         onSelectSticker={onSelectSticker}
         disabled={isTransitioning}
@@ -510,11 +741,13 @@ function DraggableVan({
   stickerRef,
   stickerPosition,
   onStickerPositionChange,
+  locked = false,
 }: {
   sticker: StickerSet
   stickerRef: (element: HTMLImageElement | null) => void
   stickerPosition: StickerPosition
   onStickerPositionChange: (position: StickerPosition) => void
+  locked?: boolean
 }) {
   const [offset, setOffset] = useState(0)
   const [isDragging, setIsDragging] = useState(false)
@@ -561,6 +794,7 @@ function DraggableVan({
   }
 
   const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    if (locked) return
     if (!hitTestsVan(event.clientX, event.clientY)) return
     event.currentTarget.setPointerCapture(event.pointerId)
     gesture.current = {
@@ -587,7 +821,7 @@ function DraggableVan({
   const endGesture = (event: PointerEvent<HTMLDivElement>) => {
     const current = gesture.current
     if (!current) return
-    if (!current.dragging) {
+    if (!current.dragging && !locked) {
       const position = stickerPositionFor(event.clientX, event.clientY)
       if (position) onStickerPositionChange(position)
     }
@@ -605,7 +839,7 @@ function DraggableVan({
       <canvas ref={alphaCanvas} className="alpha-canvas" aria-hidden />
       <div
         ref={vanWrapperRef}
-        className={`van-transform${isDragging ? ' van-transform--dragging' : ''}`}
+        className={`van-transform${isDragging ? ' van-transform--dragging' : ''}${locked ? ' van-transform--locked' : ''}`}
         style={{ transform: `translate3d(${offset}px, 0, 0)` }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -642,50 +876,63 @@ function VanScene({
   stickerRef,
   stickerPosition,
   onStickerPositionChange,
+  faded = false,
+  locked = false,
 }: {
   sticker: StickerSet
   stickerRef: (element: HTMLImageElement | null) => void
   stickerPosition: StickerPosition
   onStickerPositionChange: (position: StickerPosition) => void
+  faded?: boolean
+  locked?: boolean
 }) {
   return (
-    <section className="van-scene" aria-label="Campground scene">
+    <section
+      className={`van-scene${faded ? ' van-scene--faded' : ''}${locked ? ' van-scene--placed' : ''}`}
+      aria-label="Campground scene"
+    >
       <img className="campground" src={campground} alt="" draggable={false} />
       <DraggableVan
         sticker={sticker}
         stickerRef={stickerRef}
         stickerPosition={stickerPosition}
         onStickerPositionChange={onStickerPositionChange}
+        locked={locked}
       />
     </section>
   )
 }
 
-function PlacementContent() {
+function PlacementContent({ placed }: { placed: boolean }) {
   return (
     <div className="placement-content">
-      <h1>Place Your Sticker</h1>
-      <p>Drag your van to adjust the view, then tap where you want to place the sticker.</p>
+      <h1>{placed ? 'Looking Good' : 'Place Your Sticker'}</h1>
+      <p>
+        {placed
+          ? 'Your sticker is locked on the van. Continue when you are ready to hit the road.'
+          : 'Drag your van to adjust the view, then tap where you want to place the sticker.'}
+      </p>
     </div>
   )
 }
 
-function PlacementActions({ onSave }: { onSave: () => void }) {
+function PlacementActions({
+  placed,
+  onPlace,
+  onContinue,
+}: {
+  placed: boolean
+  onPlace: () => void
+  onContinue: () => void
+}) {
   return (
     <div className="placement-actions">
       <button
         type="button"
         className="place-sticker-button"
-        onClick={onSave}
+        onClick={placed ? onContinue : onPlace}
       >
-        Place Sticker
-      </button>
-      <button
-        type="button"
-        className="save-for-later-button"
-        onClick={onSave}
-      >
-        Save For Later
+        {placed ? 'Continue' : 'Place Sticker'}
       </button>
     </div>
   )
@@ -696,35 +943,80 @@ function PlaceStickerScreen({
   stickerRef,
   isTransitioning = false,
   transitionStage = 'idle',
+  onContinue,
 }: {
   sticker: StickerSet
   stickerRef: (element: HTMLImageElement | null) => void
   isTransitioning?: boolean
   transitionStage?: TransitionStage
+  onContinue: () => void
 }) {
   const [stickerPosition, setStickerPosition] = useState<StickerPosition>(
     STICKER_DEFAULT_POSITION,
   )
-  const savePlacement = () => {
+  const [placed, setPlaced] = useState(false)
+
+  const handlePlace = () => {
     sessionStorage.setItem('selectedStickerId', sticker.id)
     sessionStorage.setItem('selectedStickerPosition', JSON.stringify(stickerPosition))
+    setPlaced(true)
   }
 
   return (
     <div
-      className={`placement-screen${isTransitioning ? ' placement-screen--transitioning' : ''} placement-screen--${transitionStage}`}
+      className={`placement-screen${isTransitioning ? ' placement-screen--transitioning' : ''} placement-screen--${transitionStage}${placed ? ' placement-screen--placed' : ''}`}
     >
       <VanScene
         sticker={sticker}
         stickerRef={stickerRef}
         stickerPosition={stickerPosition}
         onStickerPositionChange={setStickerPosition}
+        faded={!placed}
+        locked={placed}
       />
       <div className="placement-panel">
-        <PlacementContent />
-        <PlacementActions onSave={savePlacement} />
+        <PlacementContent placed={placed} />
+        <PlacementActions placed={placed} onPlace={handlePlace} onContinue={onContinue} />
       </div>
       <StatusBar dark />
+    </div>
+  )
+}
+
+const DRIVE_OFF_DURATION_MS = 2800
+
+function DriveOffScreen({
+  sticker,
+  onComplete,
+}: {
+  sticker: StickerSet
+  onComplete: () => void
+}) {
+  const onCompleteRef = useRef(onComplete)
+  onCompleteRef.current = onComplete
+
+  useEffect(() => {
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const timer = window.setTimeout(
+      () => onCompleteRef.current(),
+      reduced ? 400 : DRIVE_OFF_DURATION_MS,
+    )
+    return () => window.clearTimeout(timer)
+  }, [])
+
+  return (
+    <div className="drive-off-screen" aria-label="Van driving off">
+      <img className="drive-off-coast" src={driveOffCoast} alt="" draggable={false} />
+      <div className="drive-off-van-wrap">
+        <img className="drive-off-van" src={driveOffVan} alt="" draggable={false} />
+        <img
+          className="drive-off-sticker"
+          src={sticker.stickerArt}
+          alt=""
+          draggable={false}
+        />
+      </div>
+      <StatusBar />
     </div>
   )
 }
@@ -825,7 +1117,10 @@ function StickerTransitionOverlay({
 }
 
 function App() {
-  const [screen, setScreen] = useState<AppScreen>('selection')
+  const [screen, setScreen] = useState<AppScreen>('map')
+  const [sheetOpen, setSheetOpen] = useState(false)
+  const [sheetReady, setSheetReady] = useState(false)
+  const [standReached, setStandReached] = useState(false)
   const [activeIndex, setActiveIndex] = useState(0)
   const [selectedStickerId, setSelectedStickerId] = useState(() => {
     const savedId = sessionStorage.getItem('selectedStickerId')
@@ -835,13 +1130,50 @@ function App() {
   const [overlayRects, setOverlayRects] = useState<{ source: StickerRect; target: StickerRect } | null>(null)
   const sourceStickerRef = useRef<HTMLImageElement | null>(null)
   const targetStickerRef = useRef<HTMLImageElement | null>(null)
+  const sheetRef = useRef<HTMLDivElement | null>(null)
   const timers = useRef<number[]>([])
   const isTransitioning = stage !== 'idle' && stage !== 'complete'
   const selectedSticker = getStickerById(selectedStickerId) ?? stickerSets[0]
+  const showMap = screen === 'map' || screen === 'selection'
+  const showSelection = screen === 'selection' || isTransitioning
 
   useEffect(() => {
     return () => timers.current.forEach((timer) => window.clearTimeout(timer))
   }, [])
+
+  useEffect(() => {
+    if (!sheetOpen) {
+      setSheetReady(false)
+      return
+    }
+    const sheet = sheetRef.current
+    if (!sheet) return
+
+    let settled = false
+    let settleTimer: number | null = null
+    const markReady = () => {
+      if (settled) return
+      settled = true
+      settleTimer = window.setTimeout(() => setSheetReady(true), 40)
+    }
+
+    const onTransitionEnd = (event: TransitionEvent) => {
+      if (event.target !== sheet) return
+      if (event.propertyName !== 'transform') return
+      window.clearTimeout(fallbackTimer)
+      markReady()
+    }
+
+    sheet.addEventListener('transitionend', onTransitionEnd)
+    // Fallback if transitionend is skipped (e.g. reduced motion / already open).
+    const fallbackTimer = window.setTimeout(markReady, 750)
+
+    return () => {
+      sheet.removeEventListener('transitionend', onTransitionEnd)
+      window.clearTimeout(fallbackTimer)
+      if (settleTimer) window.clearTimeout(settleTimer)
+    }
+  }, [sheetOpen])
 
   // Measured before paint so the overlay is already sitting on the package
   // sticker for the first frame of the lift. The target is re-measured once the
@@ -864,6 +1196,37 @@ function App() {
     })
   }, [stage])
 
+  const handleMapArrived = () => {
+    setStandReached(true)
+    setScreen('selection')
+    // Next frame so the sheet mounts off-screen before sliding up.
+    window.requestAnimationFrame(() => setSheetOpen(true))
+  }
+
+  const handleSaveForLater = () => {
+    timers.current.forEach((timer) => window.clearTimeout(timer))
+    timers.current = []
+    setStage('idle')
+    setOverlayRects(null)
+    setSheetOpen(false)
+    setSheetReady(false)
+    setStandReached(true)
+    setScreen('map')
+  }
+
+  const handleContinueToDriveOff = () => {
+    setSheetOpen(false)
+    setSheetReady(false)
+    setStage('idle')
+    setOverlayRects(null)
+    setScreen('driveOff')
+  }
+
+  const handleDriveOffComplete = () => {
+    setStandReached(true)
+    setScreen('map')
+  }
+
   const handleSelectSticker = () => {
     if (isTransitioning) return
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -879,6 +1242,8 @@ function App() {
     timers.current = [
       window.setTimeout(() => {
         setScreen('placement')
+        setSheetOpen(false)
+        setSheetReady(false)
         setStage('crossfading')
       }, reducedMotion ? 20 : crossfadeAt),
       window.setTimeout(() => setStage('landing'), reducedMotion ? 40 : dropAt),
@@ -892,17 +1257,33 @@ function App() {
   return (
     <div className="desktop-shell">
       <IPhoneFrame>
-        {screen === 'selection' || isTransitioning ? (
-          <StickerSelectionScreen
-            activeIndex={activeIndex}
-            onChange={setActiveIndex}
-            onSelectSticker={handleSelectSticker}
-            activeStickerRef={(element) => {
-              sourceStickerRef.current = element
-            }}
-            isTransitioning={isTransitioning}
-            transitionStage={stage}
+        {showMap ? (
+          <MapScreen
+            dimmed={showSelection && sheetOpen}
+            skipDrive={standReached}
+            onArrived={handleMapArrived}
           />
+        ) : null}
+        {showSelection ? (
+          <div
+            ref={sheetRef}
+            className={`selection-sheet${sheetOpen ? ' selection-sheet--open' : ''}`}
+          >
+            <StickerSelectionScreen
+              asSheet
+              sheetOpen={sheetOpen}
+              sheetReady={sheetReady}
+              activeIndex={activeIndex}
+              onChange={setActiveIndex}
+              onSelectSticker={handleSelectSticker}
+              onSaveForLater={handleSaveForLater}
+              activeStickerRef={(element) => {
+                sourceStickerRef.current = element
+              }}
+              isTransitioning={isTransitioning}
+              transitionStage={stage}
+            />
+          </div>
         ) : null}
         {screen === 'placement' || isTransitioning ? (
           <PlaceStickerScreen
@@ -912,7 +1293,11 @@ function App() {
             }}
             isTransitioning={isTransitioning}
             transitionStage={stage}
+            onContinue={handleContinueToDriveOff}
           />
+        ) : null}
+        {screen === 'driveOff' ? (
+          <DriveOffScreen sticker={selectedSticker} onComplete={handleDriveOffComplete} />
         ) : null}
         <StickerTransitionOverlay
           sticker={selectedSticker}

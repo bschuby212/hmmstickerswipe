@@ -15,7 +15,7 @@ export type StickerSet = {
   description: string
 }
 
-export type AppScreen = 'selection' | 'placement'
+export type AppScreen = 'map' | 'selection' | 'placement' | 'driveOff'
 
 /**
  * Shared packaging layers — one front / back / header for all sets.
