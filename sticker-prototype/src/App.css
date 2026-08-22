@@ -91,7 +91,16 @@
 .placement-screen--lifting { opacity: 0; pointer-events: none; }
 .placement-screen--crossfading,
 .placement-screen--landing { opacity: 1; transition: opacity 200ms ease-out; }
-.placement-screen--transitioning .placed-sticker { opacity: 0; }
+/* Keep placed sticker invisible until overlay hands off (beats faded/placed rules). */
+.placement-screen--transitioning .van-scene .placed-sticker,
+.placement-screen--lifting .van-scene .placed-sticker,
+.placement-screen--crossfading .van-scene .placed-sticker,
+.placement-screen--landing .van-scene .placed-sticker {
+  opacity: 0;
+  filter: none;
+  transition: none;
+  visibility: hidden;
+}
 .van-scene {
   position: absolute;
   top: 0;
@@ -102,7 +111,7 @@
   background: #c4c1cd;
 }
 .van-scene--faded .placed-sticker {
-  opacity: 0.72;
+  opacity: 0.52;
   filter: saturate(0.85);
   transition: opacity 320ms ease-out, filter 320ms ease-out, width 320ms ease-out;
 }
@@ -275,21 +284,27 @@
   user-select: none;
   -webkit-user-drag: none;
 }
+/* Figma 17434:3454 — crop the tall side-van PNG so the van fills the frame. */
 .drive-off-van-wrap {
   position: absolute;
-  left: 8px;
-  top: 354px;
-  width: 374px;
-  height: 212px;
+  left: 2px;
+  top: 350px;
+  width: 398px;
+  height: 225px;
+  overflow: hidden;
   will-change: transform;
+}
+.drive-off-van-wrap--driving {
   animation: drive-off-exit 2.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 .drive-off-van {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
+  left: -6.61%;
+  top: -66.25%;
+  width: 114.36%;
+  height: 204.42%;
+  max-width: none;
+  object-fit: fill;
   display: block;
   pointer-events: none;
   user-select: none;
@@ -297,16 +312,30 @@
 }
 .drive-off-sticker {
   position: absolute;
-  left: 48%;
-  top: 52%;
-  width: 58px;
+  width: 22px;
   height: auto;
+  z-index: 1;
   transform: translate(-50%, -50%);
   object-fit: contain;
   pointer-events: none;
   user-select: none;
   -webkit-user-drag: none;
-  filter: drop-shadow(0 2px 4px #0005);
+  filter: drop-shadow(0 1px 3px #0004);
+}
+.drive-off-actions {
+  position: absolute;
+  left: 32px;
+  right: 32px;
+  bottom: 48px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+.drive-off-actions .save-for-later-button {
+  border-color: rgba(255, 255, 255, 0.78);
+  color: rgba(255, 255, 255, 0.78);
 }
 @keyframes drive-off-exit {
   0% { transform: translate3d(0, 0, 0); }
@@ -314,7 +343,7 @@
   100% { transform: translate3d(120%, 0, 0); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .drive-off-van-wrap { animation-duration: 1ms; }
+  .drive-off-van-wrap--driving { animation-duration: 1ms; }
 }
 
 /* —— Map stage —— */
@@ -431,6 +460,20 @@
   -webkit-user-drag: none;
   image-rendering: auto;
 }
+/* Hit target over the Sticker Stand / awning near MAP_VAN_PATH end (~119, 340). */
+.map-stand-hit {
+  position: absolute;
+  z-index: 4;
+  left: 78px;
+  top: 268px;
+  width: 130px;
+  height: 120px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
 .map-dim {
   position: absolute;
   inset: 0;
@@ -531,7 +574,8 @@
   height: 100%;
   object-fit: contain;
   display: block;
-  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.28));
+  /* Soft lift only — hard shadow read as a charcoal frame around the plaque. */
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.12));
 }
 .selection-screen--sheet .carousel {
   position: relative;

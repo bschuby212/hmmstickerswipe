@@ -34,6 +34,59 @@ const STICKER_DEFAULT_POSITION = { x: 487, y: 376 }
 // sticker on the painted body from the rear bumper through the front bumper,
 // below the windows and above the wheel wells.
 const STICKER_BOUNDS = { minX: 101, maxX: 984, minY: 331, maxY: 432 }
+// Matching body panel on `.drive-off-van-wrap` (percent of the cropped wrap).
+const DRIVE_OFF_STICKER_BOUNDS = {
+  minLeft: 8.7,
+  maxLeft: 91.5,
+  minTop: 47.3,
+  maxTop: 61.7,
+}
+
+type StickerPosition = {
+  x: number
+  y: number
+}
+
+type MapPoint = { x: number; y: number }
+
+function clamp01(value: number) {
+  return Math.max(0, Math.min(1, value))
+}
+
+function readSavedStickerPosition(): StickerPosition {
+  try {
+    const raw = sessionStorage.getItem('selectedStickerPosition')
+    if (!raw) return STICKER_DEFAULT_POSITION
+    const parsed = JSON.parse(raw) as Partial<StickerPosition>
+    if (typeof parsed.x !== 'number' || typeof parsed.y !== 'number') {
+      return STICKER_DEFAULT_POSITION
+    }
+    return {
+      x: Math.max(STICKER_BOUNDS.minX, Math.min(STICKER_BOUNDS.maxX, parsed.x)),
+      y: Math.max(STICKER_BOUNDS.minY, Math.min(STICKER_BOUNDS.maxY, parsed.y)),
+    }
+  } catch {
+    return STICKER_DEFAULT_POSITION
+  }
+}
+
+/** Map placement van coords → % left/top on the drive-off wrap body panel. */
+function stickerPositionToDriveOffPercent(position: StickerPosition) {
+  const nx = clamp01(
+    (position.x - STICKER_BOUNDS.minX) / (STICKER_BOUNDS.maxX - STICKER_BOUNDS.minX),
+  )
+  const ny = clamp01(
+    (position.y - STICKER_BOUNDS.minY) / (STICKER_BOUNDS.maxY - STICKER_BOUNDS.minY),
+  )
+  return {
+    left:
+      DRIVE_OFF_STICKER_BOUNDS.minLeft +
+      nx * (DRIVE_OFF_STICKER_BOUNDS.maxLeft - DRIVE_OFF_STICKER_BOUNDS.minLeft),
+    top:
+      DRIVE_OFF_STICKER_BOUNDS.minTop +
+      ny * (DRIVE_OFF_STICKER_BOUNDS.maxTop - DRIVE_OFF_STICKER_BOUNDS.minTop),
+  }
+}
 
 /** Phone-space waypoints along the road from the yellow star to the grey stand star. */
 const MAP_VAN_PATH = [
@@ -49,13 +102,6 @@ const MAP_VAN_PATH = [
 const MAP_DRIVE_MS = 5200
 /** Top-down sprite nose points roughly top-left at rest (~-135°). */
 const MAP_VAN_HEADING_OFFSET = 135
-
-type StickerPosition = {
-  x: number
-  y: number
-}
-
-type MapPoint = { x: number; y: number }
 
 function easeInOutCubic(t: number) {
   return t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2
@@ -107,10 +153,12 @@ function MapScreen({
   dimmed,
   skipDrive = false,
   onArrived,
+  onStandTap,
 }: {
   dimmed: boolean
   skipDrive?: boolean
   onArrived: () => void
+  onStandTap?: () => void
 }) {
   const start = MAP_VAN_PATH[0]
   const end = MAP_VAN_PATH[MAP_VAN_PATH.length - 1]
@@ -179,6 +227,14 @@ function MapScreen({
           transform: `rotate(${pose.angle}deg)`,
         }}
       />
+      {skipDrive && onStandTap ? (
+        <button
+          type="button"
+          className="map-stand-hit"
+          aria-label="Open West Falls Sticker Stand"
+          onClick={onStandTap}
+        />
+      ) : null}
       <StatusBar />
       <header className="map-header">
         <button type="button" className="map-back" aria-label="Back">
@@ -903,36 +959,20 @@ function VanScene({
   )
 }
 
-function PlacementContent({ placed }: { placed: boolean }) {
+function PlacementContent() {
   return (
     <div className="placement-content">
-      <h1>{placed ? 'Looking Good' : 'Place Your Sticker'}</h1>
-      <p>
-        {placed
-          ? 'Your sticker is locked on the van. Continue when you are ready to hit the road.'
-          : 'Drag your van to adjust the view, then tap where you want to place the sticker.'}
-      </p>
+      <h1>Place Your Sticker</h1>
+      <p>Drag your van to adjust the view, then tap where you want to place the sticker.</p>
     </div>
   )
 }
 
-function PlacementActions({
-  placed,
-  onPlace,
-  onContinue,
-}: {
-  placed: boolean
-  onPlace: () => void
-  onContinue: () => void
-}) {
+function PlacementActions({ onPlace }: { onPlace: () => void }) {
   return (
     <div className="placement-actions">
-      <button
-        type="button"
-        className="place-sticker-button"
-        onClick={placed ? onContinue : onPlace}
-      >
-        {placed ? 'Continue' : 'Place Sticker'}
+      <button type="button" className="place-sticker-button" onClick={onPlace}>
+        Place Sticker
       </button>
     </div>
   )
@@ -952,31 +992,30 @@ function PlaceStickerScreen({
   onContinue: () => void
 }) {
   const [stickerPosition, setStickerPosition] = useState<StickerPosition>(
-    STICKER_DEFAULT_POSITION,
+    readSavedStickerPosition,
   )
-  const [placed, setPlaced] = useState(false)
 
   const handlePlace = () => {
     sessionStorage.setItem('selectedStickerId', sticker.id)
     sessionStorage.setItem('selectedStickerPosition', JSON.stringify(stickerPosition))
-    setPlaced(true)
+    onContinue()
   }
 
   return (
     <div
-      className={`placement-screen${isTransitioning ? ' placement-screen--transitioning' : ''} placement-screen--${transitionStage}${placed ? ' placement-screen--placed' : ''}`}
+      className={`placement-screen${isTransitioning ? ' placement-screen--transitioning' : ''} placement-screen--${transitionStage}`}
     >
       <VanScene
         sticker={sticker}
         stickerRef={stickerRef}
         stickerPosition={stickerPosition}
         onStickerPositionChange={setStickerPosition}
-        faded={!placed}
-        locked={placed}
+        faded
+        locked={false}
       />
       <div className="placement-panel">
-        <PlacementContent placed={placed} />
-        <PlacementActions placed={placed} onPlace={handlePlace} onContinue={onContinue} />
+        <PlacementContent />
+        <PlacementActions onPlace={handlePlace} />
       </div>
       <StatusBar dark />
     </div>
@@ -988,34 +1027,58 @@ const DRIVE_OFF_DURATION_MS = 2800
 function DriveOffScreen({
   sticker,
   onComplete,
+  onChangePlacement,
 }: {
   sticker: StickerSet
   onComplete: () => void
+  onChangePlacement: () => void
 }) {
+  const [driving, setDriving] = useState(false)
+  const stickerPercent = stickerPositionToDriveOffPercent(readSavedStickerPosition())
   const onCompleteRef = useRef(onComplete)
   onCompleteRef.current = onComplete
 
   useEffect(() => {
+    if (!driving) return
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     const timer = window.setTimeout(
       () => onCompleteRef.current(),
       reduced ? 400 : DRIVE_OFF_DURATION_MS,
     )
     return () => window.clearTimeout(timer)
-  }, [])
+  }, [driving])
 
   return (
     <div className="drive-off-screen" aria-label="Van driving off">
       <img className="drive-off-coast" src={driveOffCoast} alt="" draggable={false} />
-      <div className="drive-off-van-wrap">
+      <div className={`drive-off-van-wrap${driving ? ' drive-off-van-wrap--driving' : ''}`}>
         <img className="drive-off-van" src={driveOffVan} alt="" draggable={false} />
         <img
           className="drive-off-sticker"
           src={sticker.stickerArt}
           alt=""
           draggable={false}
+          style={{ left: `${stickerPercent.left}%`, top: `${stickerPercent.top}%` }}
         />
       </div>
+      {!driving ? (
+        <div className="drive-off-actions">
+          <button
+            type="button"
+            className="place-sticker-button"
+            onClick={() => setDriving(true)}
+          >
+            Continue
+          </button>
+          <button
+            type="button"
+            className="save-for-later-button"
+            onClick={onChangePlacement}
+          >
+            Change Placement
+          </button>
+        </div>
+      ) : null}
       <StatusBar />
     </div>
   )
@@ -1203,6 +1266,13 @@ function App() {
     window.requestAnimationFrame(() => setSheetOpen(true))
   }
 
+  const handleStandTap = () => {
+    if (sheetOpen || screen === 'selection') return
+    setStandReached(true)
+    setScreen('selection')
+    window.requestAnimationFrame(() => setSheetOpen(true))
+  }
+
   const handleSaveForLater = () => {
     timers.current.forEach((timer) => window.clearTimeout(timer))
     timers.current = []
@@ -1225,6 +1295,10 @@ function App() {
   const handleDriveOffComplete = () => {
     setStandReached(true)
     setScreen('map')
+  }
+
+  const handleChangePlacement = () => {
+    setScreen('placement')
   }
 
   const handleSelectSticker = () => {
@@ -1262,6 +1336,7 @@ function App() {
             dimmed={showSelection && sheetOpen}
             skipDrive={standReached}
             onArrived={handleMapArrived}
+            onStandTap={handleStandTap}
           />
         ) : null}
         {showSelection ? (
@@ -1287,6 +1362,7 @@ function App() {
         ) : null}
         {screen === 'placement' || isTransitioning ? (
           <PlaceStickerScreen
+            key={`${selectedStickerId}-placement`}
             sticker={selectedSticker}
             stickerRef={(element) => {
               targetStickerRef.current = element
@@ -1297,7 +1373,11 @@ function App() {
           />
         ) : null}
         {screen === 'driveOff' ? (
-          <DriveOffScreen sticker={selectedSticker} onComplete={handleDriveOffComplete} />
+          <DriveOffScreen
+            sticker={selectedSticker}
+            onComplete={handleDriveOffComplete}
+            onChangePlacement={handleChangePlacement}
+          />
         ) : null}
         <StickerTransitionOverlay
           sticker={selectedSticker}
