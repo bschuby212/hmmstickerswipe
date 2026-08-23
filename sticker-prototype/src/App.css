@@ -305,7 +305,6 @@
   height: 225px;
   overflow: hidden;
   will-change: transform;
-  background-color: #d2a76c;
 }
 .drive-off-van-wrap--driving {
   animation: drive-off-exit 2.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
