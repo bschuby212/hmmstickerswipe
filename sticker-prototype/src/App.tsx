@@ -992,8 +992,8 @@ function PlacementContent() {
   return (
     <div className="placement-content" id="placement-instructions">
       <h1>Place Your Sticker</h1>
-      <p>Pick where your sticker belongs on the van and celebrate how far you’ve come.</p>
-      <p>Drag the sticker to where you want to place the sticker.</p>
+      <p>You’ve picked your sticker — now choose where it lives on the van.</p>
+      <p>Drag it along the side until the placement feels right, then tap Place Sticker when you’re ready.</p>
     </div>
   )
 }
@@ -1048,9 +1048,6 @@ function PlaceStickerScreen({
         locked={false}
       />
       <div className="placement-panel">
-        <div className="placement-bubble" aria-hidden="true">
-          <img src={sticker.stickerArt} alt="" />
-        </div>
         <PlacementContent />
         <PlacementActions onPlace={handlePlace} />
       </div>
