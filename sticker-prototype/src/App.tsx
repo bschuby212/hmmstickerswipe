@@ -29,7 +29,7 @@ const VAN_INITIAL_LEFT = -292
 const VAN_WIDTH = 939
 const VAN_HEIGHT = 533
 const SCENE_WIDTH = 393
-const STICKER_DEFAULT_POSITION = { x: 431, y: 332 }
+const STICKER_DEFAULT_POSITION = { x: 431, y: 358 }
 // Coordinates are measured in the van artwork display size. This keeps the
 // sticker on the painted blue body from the rear bumper through the front bumper,
 // below the windows and above the wheel wells.
@@ -38,7 +38,7 @@ const STICKER_HALF_HEIGHT = 23
 const VAN_BODY_BOTTOM_Y = 358
 const PLACEMENT_ZOOM = 1.05
 const VAN_TOP = 31
-const PLACEMENT_ANCHOR = { x: 196, y: 420 }
+const PLACEMENT_ANCHOR = { x: 196, y: 396 }
 const PLACEMENT_BG_PARALLAX = 0.12
 const PLACEMENT_BG_MAX_DRIFT = { x: 36, y: 24 }
 
