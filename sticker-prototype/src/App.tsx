@@ -25,23 +25,21 @@ import driveOffCoast from './assets/drive-off/coast.png'
 import driveOffVan from './assets/drive-off/side-van.png'
 import './App.css'
 
-const VAN_INITIAL_LEFT = -330
-const VAN_WIDTH = 1062
-const VAN_HEIGHT = 603
+const VAN_INITIAL_LEFT = -292
+const VAN_WIDTH = 939
+const VAN_HEIGHT = 533
 const SCENE_WIDTH = 393
-const STICKER_DEFAULT_POSITION = { x: 487, y: 376 }
+const STICKER_DEFAULT_POSITION = { x: 431, y: 332 }
 // Coordinates are measured in the van artwork display size. This keeps the
 // sticker on the painted blue body from the rear bumper through the front bumper,
 // below the windows and above the wheel wells.
-const STICKER_BOUNDS = { minX: 101, maxX: 984, minY: 350, maxY: 420 }
-const STICKER_HALF_HEIGHT = 26
-const PLACEMENT_ZOOM = 1.18
+const STICKER_BOUNDS = { minX: 89, maxX: 870, minY: 309, maxY: 371 }
+const STICKER_HALF_HEIGHT = 23
+const PLACEMENT_ZOOM = 1.05
 const VAN_TOP = 47
 const PLACEMENT_ANCHOR = { x: 196, y: 420 }
 const PLACEMENT_BG_PARALLAX = 0.12
 const PLACEMENT_BG_MAX_DRIFT = { x: 36, y: 24 }
-// Keep the scaled van covering the viewport horizontally so drag never exposes empty sides.
-const PLACEMENT_PAN_VIEWPORT_MARGIN = 32
 
 type PanOffset = {
   x: number
@@ -49,28 +47,15 @@ type PanOffset = {
 }
 
 function getPlacementPanLimits() {
-  const vanLeftScaled = VAN_INITIAL_LEFT * PLACEMENT_ZOOM
-  const vanRightScaled = (VAN_INITIAL_LEFT + VAN_WIDTH) * PLACEMENT_ZOOM
-
-  const stickerPanXMin =
-    PLACEMENT_ANCHOR.x - (VAN_INITIAL_LEFT + STICKER_BOUNDS.maxX) * PLACEMENT_ZOOM
-  const stickerPanXMax =
-    PLACEMENT_ANCHOR.x - (VAN_INITIAL_LEFT + STICKER_BOUNDS.minX) * PLACEMENT_ZOOM
-  const stickerPanYMin =
-    PLACEMENT_ANCHOR.y - (VAN_TOP + STICKER_BOUNDS.maxY) * PLACEMENT_ZOOM
-  const stickerPanYMax =
-    PLACEMENT_ANCHOR.y - (VAN_TOP + STICKER_BOUNDS.minY) * PLACEMENT_ZOOM
-
-  const viewportPanXMin =
-    SCENE_WIDTH - PLACEMENT_PAN_VIEWPORT_MARGIN - vanRightScaled
-  const viewportPanXMax = PLACEMENT_PAN_VIEWPORT_MARGIN - vanLeftScaled
-
   return {
     x: {
-      min: Math.max(stickerPanXMin, viewportPanXMin),
-      max: Math.min(stickerPanXMax, viewportPanXMax),
+      min: PLACEMENT_ANCHOR.x - (VAN_INITIAL_LEFT + STICKER_BOUNDS.maxX) * PLACEMENT_ZOOM,
+      max: PLACEMENT_ANCHOR.x - (VAN_INITIAL_LEFT + STICKER_BOUNDS.minX) * PLACEMENT_ZOOM,
     },
-    y: { min: stickerPanYMin, max: stickerPanYMax },
+    y: {
+      min: PLACEMENT_ANCHOR.y - (VAN_TOP + STICKER_BOUNDS.maxY) * PLACEMENT_ZOOM,
+      max: PLACEMENT_ANCHOR.y - (VAN_TOP + STICKER_BOUNDS.minY) * PLACEMENT_ZOOM,
+    },
   }
 }
 
