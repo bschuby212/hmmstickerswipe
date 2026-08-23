@@ -1001,11 +1001,20 @@ function PlacementContent() {
   )
 }
 
-function PlacementActions({ onPlace }: { onPlace: () => void }) {
+function PlacementActions({
+  onPlace,
+  onSaveForLater,
+}: {
+  onPlace: () => void
+  onSaveForLater: () => void
+}) {
   return (
     <div className="placement-actions">
       <button type="button" className="place-sticker-button" onClick={onPlace}>
         Place Sticker
+      </button>
+      <button type="button" className="save-for-later-button" onClick={onSaveForLater}>
+        Save For Later
       </button>
     </div>
   )
@@ -1017,12 +1026,14 @@ function PlaceStickerScreen({
   isTransitioning = false,
   transitionStage = 'idle',
   onContinue,
+  onSaveForLater,
 }: {
   sticker: StickerSet
   stickerRef: (element: HTMLImageElement | null) => void
   isTransitioning?: boolean
   transitionStage?: TransitionStage
   onContinue: () => void
+  onSaveForLater: () => void
 }) {
   const alphaCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const [panOffset, setPanOffset] = useState<PanOffset>(() => getInitialPlacementPan())
@@ -1054,7 +1065,7 @@ function PlaceStickerScreen({
       />
       <div className="placement-panel">
         <PlacementContent />
-        <PlacementActions onPlace={handlePlace} />
+        <PlacementActions onPlace={handlePlace} onSaveForLater={onSaveForLater} />
       </div>
       <StatusBar dark />
     </div>
@@ -1427,6 +1438,7 @@ function App() {
             isTransitioning={isTransitioning}
             transitionStage={stage}
             onContinue={handleContinueToDriveOff}
+            onSaveForLater={handleSaveForLater}
           />
         ) : null}
         {screen === 'driveOff' || screen === 'placement' ? (

@@ -254,12 +254,14 @@
   height: 313px;
   background: #fff;
   border-radius: 30px 30px 0 0;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  padding: 31px 32px 28px;
 }
 .placement-content {
-  position: absolute;
-  top: 31px;
-  left: 32px;
-  right: 32px;
+  position: static;
+  flex: 0 0 auto;
   text-align: center;
   pointer-events: none;
 }
@@ -284,11 +286,9 @@
   margin-top: 8px;
 }
 .placement-actions {
-  position: absolute;
-  left: 32px;
-  right: 32px;
-  top: auto;
-  bottom: 28px;
+  position: static;
+  flex: 0 0 auto;
+  margin-top: 24px;
   display: flex;
   flex-direction: column;
   gap: 16px;
