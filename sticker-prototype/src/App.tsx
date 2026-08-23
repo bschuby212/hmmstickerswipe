@@ -156,6 +156,15 @@ function clampStickerPosition(position: StickerPosition): StickerPosition {
   }
 }
 
+function isStickerPositionInBounds(position: StickerPosition): boolean {
+  return (
+    position.x >= STICKER_BOUNDS.minX &&
+    position.x <= STICKER_BOUNDS.maxX &&
+    position.y >= STICKER_BOUNDS.minY &&
+    position.y <= STICKER_BOUNDS.maxY
+  )
+}
+
 function isValidStickerPosition(
   position: StickerPosition,
   canvas: HTMLCanvasElement | null,
@@ -188,22 +197,39 @@ function clamp01(value: number) {
 function readSavedStickerPosition(): StickerPosition {
   try {
     const raw = sessionStorage.getItem('selectedStickerPosition')
-    if (!raw) return clampStickerPosition(stickerPositionFromPan(PLACEMENT_INITIAL_PAN))
+    if (!raw) return stickerPositionFromPan(PLACEMENT_INITIAL_PAN)
     const parsed = JSON.parse(raw) as Partial<StickerPosition>
     if (typeof parsed.x !== 'number' || typeof parsed.y !== 'number') {
-      return clampStickerPosition(stickerPositionFromPan(PLACEMENT_INITIAL_PAN))
+      return stickerPositionFromPan(PLACEMENT_INITIAL_PAN)
     }
-    return clampStickerPosition({
-      x: parsed.x,
-      y: parsed.y,
-    })
+    const position = { x: parsed.x, y: parsed.y }
+    if (!isStickerPositionInBounds(position)) {
+      return stickerPositionFromPan(PLACEMENT_INITIAL_PAN)
+    }
+    return position
   } catch {
-    return clampStickerPosition(stickerPositionFromPan(PLACEMENT_INITIAL_PAN))
+    return stickerPositionFromPan(PLACEMENT_INITIAL_PAN)
   }
 }
 
 function getInitialPlacementPan(): PanOffset {
   if (!sessionStorage.getItem('selectedStickerPosition')) {
+    return clampPanOffset(PLACEMENT_INITIAL_PAN)
+  }
+  try {
+    const raw = sessionStorage.getItem('selectedStickerPosition')
+    if (!raw) return clampPanOffset(PLACEMENT_INITIAL_PAN)
+    const parsed = JSON.parse(raw) as Partial<StickerPosition>
+    if (
+      typeof parsed.x !== 'number' ||
+      typeof parsed.y !== 'number' ||
+      !isStickerPositionInBounds({ x: parsed.x, y: parsed.y })
+    ) {
+      sessionStorage.removeItem('selectedStickerPosition')
+      return clampPanOffset(PLACEMENT_INITIAL_PAN)
+    }
+  } catch {
+    sessionStorage.removeItem('selectedStickerPosition')
     return clampPanOffset(PLACEMENT_INITIAL_PAN)
   }
   return clampPanOffset(panFromStickerPosition(readSavedStickerPosition()))
@@ -1065,7 +1091,10 @@ function PlaceStickerScreen({
   const handlePlace = () => {
     if (!canPlace) return
     sessionStorage.setItem('selectedStickerId', sticker.id)
-    sessionStorage.setItem('selectedStickerPosition', JSON.stringify(stickerPosition))
+    sessionStorage.setItem(
+      'selectedStickerPosition',
+      JSON.stringify(clampStickerPosition(stickerPosition)),
+    )
     onContinue()
   }
 
@@ -1281,6 +1310,7 @@ function App() {
     return getStickerById(savedId ?? '')?.id ?? 'hike'
   })
   const [stage, setStage] = useState<TransitionStage>('idle')
+  const [placementEntryId, setPlacementEntryId] = useState(0)
   const [overlayRects, setOverlayRects] = useState<{ source: StickerRect; target: StickerRect } | null>(null)
   const sourceStickerRef = useRef<HTMLImageElement | null>(null)
   const targetStickerRef = useRef<HTMLImageElement | null>(null)
@@ -1394,6 +1424,8 @@ function App() {
     const sticker = stickerSets[activeIndex]
     setSelectedStickerId(sticker.id)
     sessionStorage.setItem('selectedStickerId', sticker.id)
+    sessionStorage.removeItem('selectedStickerPosition')
+    setPlacementEntryId((entryId) => entryId + 1)
     setStage('lifting')
 
     const crossfadeAt = LIFT_DURATION
@@ -1449,7 +1481,7 @@ function App() {
         ) : null}
         {screen === 'placement' || isTransitioning ? (
           <PlaceStickerScreen
-            key={`${selectedStickerId}-placement`}
+            key={`placement-${placementEntryId}`}
             sticker={selectedSticker}
             stickerRef={(element) => {
               targetStickerRef.current = element
