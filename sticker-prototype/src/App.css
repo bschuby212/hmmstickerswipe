@@ -152,12 +152,12 @@
   height: 603px;
   max-width: none;
   display: block;
-  cursor: grab;
+  cursor: default;
   touch-action: none;
   user-select: none;
   -webkit-user-drag: none;
+  pointer-events: none;
 }
-.van:active { cursor: grabbing; }
 .placed-sticker {
   position: absolute;
   transform: translate(-50%, -50%);
@@ -169,6 +169,23 @@
   user-select: none;
   -webkit-user-drag: none;
   transition: left 200ms cubic-bezier(.22,.8,.28,1), top 200ms cubic-bezier(.22,.8,.28,1);
+}
+.placed-sticker--interactive {
+  pointer-events: auto;
+  cursor: grab;
+  touch-action: none;
+}
+.placed-sticker--dragging,
+.placed-sticker--interactive:active {
+  cursor: grabbing;
+}
+.placed-sticker--interactive:focus {
+  outline: none;
+}
+.placed-sticker--interactive:focus-visible {
+  outline: 2px solid #765cd8;
+  outline-offset: 4px;
+  border-radius: 4px;
 }
 .van-transform--dragging .placed-sticker {
   transition: none;
@@ -205,14 +222,46 @@
   right: 0;
   bottom: 0;
   height: 313px;
-  background: #faf8f7;
+  background: #fff;
   border-radius: 30px 30px 0 0;
+}
+.placement-bubble {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  z-index: 2;
+  width: 64px;
+  height: 64px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 8px 20px rgba(6, 50, 53, 0.12);
+  display: grid;
+  place-items: center;
+}
+.placement-bubble::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -7px;
+  width: 16px;
+  height: 16px;
+  background: #fff;
+  transform: translateX(-50%) rotate(45deg);
+  border-radius: 3px;
+}
+.placement-bubble img {
+  position: relative;
+  z-index: 1;
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
 }
 .placement-content {
   position: absolute;
-  top: 31px;
-  left: 0;
-  right: 0;
+  top: 48px;
+  left: 32px;
+  right: 32px;
   text-align: center;
   pointer-events: none;
 }
@@ -226,22 +275,31 @@
 }
 .placement-content p {
   margin: 0 auto;
-  max-width: 303px;
+  max-width: 329px;
   font-size: 16px;
   font-weight: 400;
   line-height: 1.4;
   letter-spacing: -0.5px;
   color: #063235;
 }
+.placement-content p + p {
+  margin-top: 8px;
+}
 .placement-actions {
   position: absolute;
   left: 32px;
   right: 32px;
-  top: 168px;
-  bottom: auto;
+  top: auto;
+  bottom: 28px;
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+.placement-actions .place-sticker-button {
+  width: 100%;
+  height: 52px;
+  border-radius: 999px;
+  font-size: 16px;
 }
 .place-sticker-button,
 .save-for-later-button {
