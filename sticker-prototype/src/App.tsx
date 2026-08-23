@@ -35,9 +35,11 @@ const STICKER_DEFAULT_POSITION = { x: 487, y: 376 }
 // below the windows and above the wheel wells.
 const STICKER_BOUNDS = { minX: 101, maxX: 984, minY: 350, maxY: 420 }
 const STICKER_HALF_HEIGHT = 26
-const PLACEMENT_ZOOM = 1.45
+const PLACEMENT_ZOOM = 1.18
 const VAN_TOP = 47
-const PLACEMENT_ANCHOR = { x: 196, y: 480 }
+const PLACEMENT_ANCHOR = { x: 196, y: 420 }
+const PLACEMENT_BG_PARALLAX = 0.12
+const PLACEMENT_BG_MAX_DRIFT = { x: 36, y: 24 }
 
 type PanOffset = {
   x: number
@@ -73,6 +75,19 @@ function clampPanOffset(pan: PanOffset): PanOffset {
         PLACEMENT_ANCHOR.y - (VAN_TOP + STICKER_BOUNDS.minY) * PLACEMENT_ZOOM,
         pan.y,
       ),
+    ),
+  }
+}
+
+function backgroundPanFromVanPan(pan: PanOffset): PanOffset {
+  return {
+    x: Math.max(
+      -PLACEMENT_BG_MAX_DRIFT.x,
+      Math.min(PLACEMENT_BG_MAX_DRIFT.x, pan.x * PLACEMENT_BG_PARALLAX),
+    ),
+    y: Math.max(
+      -PLACEMENT_BG_MAX_DRIFT.y,
+      Math.min(PLACEMENT_BG_MAX_DRIFT.y, pan.y * PLACEMENT_BG_PARALLAX),
     ),
   }
 }
@@ -891,22 +906,26 @@ function PanningPlacementScene({
     setIsDragging(false)
   }
 
+  const bgPan = backgroundPanFromVanPan(panOffset)
+  const vanTransform = `translate3d(${panOffset.x}px, ${panOffset.y}px, 0) scale(${PLACEMENT_ZOOM})`
+  const bgTransform = `translate3d(${bgPan.x}px, ${bgPan.y}px, 0) scale(${PLACEMENT_ZOOM})`
+
   return (
     <section
       className={`van-scene${faded ? ' van-scene--faded' : ''}`}
       aria-label="Campground scene"
     >
+      <div className="placement-bg-layer" style={{ transform: bgTransform }} aria-hidden>
+        <img className="campground" src={campground} alt="" draggable={false} />
+      </div>
       <div
-        className={`placement-pan-layer${isDragging ? ' placement-pan-layer--dragging' : ''}`}
-        style={{
-          transform: `translate3d(${panOffset.x}px, ${panOffset.y}px, 0) scale(${PLACEMENT_ZOOM})`,
-        }}
+        className={`placement-van-layer${isDragging ? ' placement-van-layer--dragging' : ''}`}
+        style={{ transform: vanTransform }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={endGesture}
         onPointerCancel={endGesture}
       >
-        <img className="campground" src={campground} alt="" draggable={false} />
         <img
           className="van"
           src={vanArt}
