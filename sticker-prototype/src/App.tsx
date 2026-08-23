@@ -39,20 +39,22 @@ type PanOffset = {
   y: number
 }
 
-const PLACEMENT_VAN_REST_OFFSET_Y = 16
-const PLACEMENT_SCENE_CENTER = {
+const PLACEMENT_STICKER_REST_OFFSET_Y = 32
+const PLACEMENT_VAN_REST_OFFSET_Y = 48
+const PLACEMENT_ANCHOR = {
   x: SCENE_WIDTH / 2,
-  y: VAN_SCENE_HEIGHT / 2 + PLACEMENT_VAN_REST_OFFSET_Y,
+  y: VAN_SCENE_HEIGHT / 2 + PLACEMENT_STICKER_REST_OFFSET_Y,
 }
 
 function panToCenterVanInScene(): PanOffset {
+  const vanCenterY = VAN_SCENE_HEIGHT / 2 + PLACEMENT_VAN_REST_OFFSET_Y
   return {
     x:
-      PLACEMENT_SCENE_CENTER.x -
+      PLACEMENT_ANCHOR.x -
       VAN_INITIAL_LEFT * PLACEMENT_ZOOM -
       (VAN_WIDTH * PLACEMENT_ZOOM) / 2,
     y:
-      PLACEMENT_SCENE_CENTER.y -
+      vanCenterY -
       VAN_TOP * PLACEMENT_ZOOM -
       (VAN_HEIGHT * PLACEMENT_ZOOM) / 2,
   }
@@ -76,8 +78,6 @@ function getVanCenterScenePoint(pan: PanOffset): { x: number; y: number } {
     y: vanTop + (VAN_HEIGHT * PLACEMENT_ZOOM) / 2,
   }
 }
-
-const PLACEMENT_ANCHOR = PLACEMENT_SCENE_CENTER
 
 function getPlacementPanLimits() {
   const stickerPanYMin =
