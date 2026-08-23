@@ -280,6 +280,10 @@
   overflow: hidden;
   background: #c5d4e8;
 }
+.drive-off-screen--preloading {
+  visibility: hidden;
+  pointer-events: none;
+}
 .drive-off-coast {
   position: absolute;
   left: -89px;
@@ -303,7 +307,7 @@
   will-change: transform;
 }
 .drive-off-van-wrap--driving {
-  animation: drive-off-exit 2.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  animation: drive-off-exit 2.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 .drive-off-van {
   position: absolute;
@@ -320,7 +324,7 @@
 }
 .drive-off-sticker {
   position: absolute;
-  width: 22px;
+  width: 19.8px;
   height: auto;
   z-index: 1;
   transform: translate(-50%, -50%);
@@ -347,7 +351,6 @@
 }
 @keyframes drive-off-exit {
   0% { transform: translate3d(0, 0, 0); }
-  12% { transform: translate3d(0, 0, 0); }
   100% { transform: translate3d(120%, 0, 0); }
 }
 @media (prefers-reduced-motion: reduce) {

@@ -33,7 +33,8 @@ const STICKER_DEFAULT_POSITION = { x: 487, y: 376 }
 // Coordinates are measured in the van artwork display size. This keeps the
 // sticker on the painted blue body from the rear bumper through the front bumper,
 // below the windows and above the wheel wells.
-const STICKER_BOUNDS = { minX: 101, maxX: 984, minY: 310, maxY: 432 }
+const STICKER_BOUNDS = { minX: 101, maxX: 984, minY: 350, maxY: 420 }
+const STICKER_HALF_HEIGHT = 26
 
 function isBodyPaintPixel(r: number, g: number, b: number, a: number) {
   return a >= 20 && b > 95 && b > r + 25 && b > g + 10
@@ -61,14 +62,15 @@ function isValidStickerPosition(
 ) {
   const clamped = clampStickerPosition(position)
   if (clamped.x !== position.x || clamped.y !== position.y) return false
-  return isBodyPaintAt(position.x, position.y, canvas)
+  if (!isBodyPaintAt(position.x, position.y, canvas)) return false
+  return isBodyPaintAt(position.x, position.y - STICKER_HALF_HEIGHT, canvas)
 }
 // Matching body panel on `.drive-off-van-wrap` (percent of the cropped wrap).
 const DRIVE_OFF_STICKER_BOUNDS = {
   minLeft: 8.7,
   maxLeft: 91.5,
-  minTop: 47.3,
-  maxTop: 61.7,
+  minTop: 63,
+  maxTop: 69,
 }
 
 type StickerPosition = {
@@ -1057,21 +1059,27 @@ function PlaceStickerScreen({
   )
 }
 
-const DRIVE_OFF_DURATION_MS = 2800
+const DRIVE_OFF_DURATION_MS = 2200
 
 function DriveOffScreen({
   sticker,
   onComplete,
   onChangePlacement,
+  preloading = false,
 }: {
   sticker: StickerSet
   onComplete: () => void
   onChangePlacement: () => void
+  preloading?: boolean
 }) {
   const [driving, setDriving] = useState(false)
   const stickerPercent = stickerPositionToDriveOffPercent(readSavedStickerPosition())
   const onCompleteRef = useRef(onComplete)
   onCompleteRef.current = onComplete
+
+  useEffect(() => {
+    if (preloading) setDriving(false)
+  }, [preloading])
 
   useEffect(() => {
     if (!driving) return
@@ -1084,7 +1092,11 @@ function DriveOffScreen({
   }, [driving])
 
   return (
-    <div className="drive-off-screen" aria-label="Van driving off">
+    <div
+      className={`drive-off-screen${preloading ? ' drive-off-screen--preloading' : ''}`}
+      aria-hidden={preloading}
+      aria-label="Van driving off"
+    >
       <img className="drive-off-coast" src={driveOffCoast} alt="" draggable={false} />
       <div className={`drive-off-van-wrap${driving ? ' drive-off-van-wrap--driving' : ''}`}>
         <img className="drive-off-van" src={driveOffVan} alt="" draggable={false} />
@@ -1407,11 +1419,12 @@ function App() {
             onContinue={handleContinueToDriveOff}
           />
         ) : null}
-        {screen === 'driveOff' ? (
+        {screen === 'driveOff' || screen === 'placement' ? (
           <DriveOffScreen
             sticker={selectedSticker}
             onComplete={handleDriveOffComplete}
             onChangePlacement={handleChangePlacement}
+            preloading={screen === 'placement'}
           />
         ) : null}
         <StickerTransitionOverlay
