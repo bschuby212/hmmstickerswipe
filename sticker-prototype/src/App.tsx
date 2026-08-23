@@ -40,10 +40,38 @@ const VAN_TOP = 47
 const PLACEMENT_ANCHOR = { x: 196, y: 420 }
 const PLACEMENT_BG_PARALLAX = 0.12
 const PLACEMENT_BG_MAX_DRIFT = { x: 36, y: 24 }
+// Keep the scaled van covering the viewport horizontally so drag never exposes empty sides.
+const PLACEMENT_PAN_VIEWPORT_MARGIN = 32
 
 type PanOffset = {
   x: number
   y: number
+}
+
+function getPlacementPanLimits() {
+  const vanLeftScaled = VAN_INITIAL_LEFT * PLACEMENT_ZOOM
+  const vanRightScaled = (VAN_INITIAL_LEFT + VAN_WIDTH) * PLACEMENT_ZOOM
+
+  const stickerPanXMin =
+    PLACEMENT_ANCHOR.x - (VAN_INITIAL_LEFT + STICKER_BOUNDS.maxX) * PLACEMENT_ZOOM
+  const stickerPanXMax =
+    PLACEMENT_ANCHOR.x - (VAN_INITIAL_LEFT + STICKER_BOUNDS.minX) * PLACEMENT_ZOOM
+  const stickerPanYMin =
+    PLACEMENT_ANCHOR.y - (VAN_TOP + STICKER_BOUNDS.maxY) * PLACEMENT_ZOOM
+  const stickerPanYMax =
+    PLACEMENT_ANCHOR.y - (VAN_TOP + STICKER_BOUNDS.minY) * PLACEMENT_ZOOM
+
+  const viewportPanXMin =
+    SCENE_WIDTH - PLACEMENT_PAN_VIEWPORT_MARGIN - vanRightScaled
+  const viewportPanXMax = PLACEMENT_PAN_VIEWPORT_MARGIN - vanLeftScaled
+
+  return {
+    x: {
+      min: Math.max(stickerPanXMin, viewportPanXMin),
+      max: Math.min(stickerPanXMax, viewportPanXMax),
+    },
+    y: { min: stickerPanYMin, max: stickerPanYMax },
+  }
 }
 
 function stickerPositionFromPan(pan: PanOffset): StickerPosition {
@@ -61,21 +89,10 @@ function panFromStickerPosition(position: StickerPosition): PanOffset {
 }
 
 function clampPanOffset(pan: PanOffset): PanOffset {
+  const limits = getPlacementPanLimits()
   return {
-    x: Math.max(
-      PLACEMENT_ANCHOR.x - (VAN_INITIAL_LEFT + STICKER_BOUNDS.maxX) * PLACEMENT_ZOOM,
-      Math.min(
-        PLACEMENT_ANCHOR.x - (VAN_INITIAL_LEFT + STICKER_BOUNDS.minX) * PLACEMENT_ZOOM,
-        pan.x,
-      ),
-    ),
-    y: Math.max(
-      PLACEMENT_ANCHOR.y - (VAN_TOP + STICKER_BOUNDS.maxY) * PLACEMENT_ZOOM,
-      Math.min(
-        PLACEMENT_ANCHOR.y - (VAN_TOP + STICKER_BOUNDS.minY) * PLACEMENT_ZOOM,
-        pan.y,
-      ),
-    ),
+    x: Math.max(limits.x.min, Math.min(limits.x.max, pan.x)),
+    y: Math.max(limits.y.min, Math.min(limits.y.max, pan.y)),
   }
 }
 
