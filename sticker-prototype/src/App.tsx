@@ -39,7 +39,11 @@ type PanOffset = {
   y: number
 }
 
-const PLACEMENT_SCENE_CENTER = { x: SCENE_WIDTH / 2, y: VAN_SCENE_HEIGHT / 2 }
+const PLACEMENT_VAN_REST_OFFSET_Y = 16
+const PLACEMENT_SCENE_CENTER = {
+  x: SCENE_WIDTH / 2,
+  y: VAN_SCENE_HEIGHT / 2 + PLACEMENT_VAN_REST_OFFSET_Y,
+}
 
 function panToCenterVanInScene(): PanOffset {
   return {
