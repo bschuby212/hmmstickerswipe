@@ -111,7 +111,7 @@
   background: #c4c1cd;
 }
 .van-scene--faded .placed-sticker {
-  opacity: 0.42;
+  opacity: 0.37;
   filter: saturate(0.85);
   transition: opacity 320ms ease-out, filter 320ms ease-out, width 320ms ease-out;
 }
@@ -305,6 +305,7 @@
   height: 225px;
   overflow: hidden;
   will-change: transform;
+  background-color: #d2a76c;
 }
 .drive-off-van-wrap--driving {
   animation: drive-off-exit 2.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
@@ -317,8 +318,6 @@
   height: 204.42%;
   max-width: none;
   object-fit: fill;
-  image-rendering: -webkit-optimize-contrast;
-  image-rendering: crisp-edges;
   display: block;
   pointer-events: none;
   user-select: none;
@@ -395,7 +394,7 @@
   align-items: flex-start;
   justify-content: space-between;
   box-sizing: border-box;
-  background: rgba(249, 247, 246, 0.65);
+  background: rgba(249, 247, 246, 0.6);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   color: #063235;
