@@ -111,7 +111,7 @@
   background: #c4c1cd;
 }
 .van-scene--faded .placed-sticker {
-  opacity: 0.52;
+  opacity: 0.42;
   filter: saturate(0.85);
   transition: opacity 320ms ease-out, filter 320ms ease-out, width 320ms ease-out;
 }
@@ -317,6 +317,8 @@
   height: 204.42%;
   max-width: none;
   object-fit: fill;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
   display: block;
   pointer-events: none;
   user-select: none;
@@ -393,7 +395,7 @@
   align-items: flex-start;
   justify-content: space-between;
   box-sizing: border-box;
-  background: rgba(249, 247, 246, 0.7);
+  background: rgba(249, 247, 246, 0.65);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   color: #063235;
