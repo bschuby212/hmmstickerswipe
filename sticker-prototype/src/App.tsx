@@ -37,7 +37,7 @@ const STICKER_BOUNDS = { minX: 89, maxX: 870, minY: 309, maxY: 358 }
 const STICKER_HALF_HEIGHT = 23
 const VAN_BODY_BOTTOM_Y = 358
 const PLACEMENT_ZOOM = 1.05
-const VAN_TOP = 47
+const VAN_TOP = 31
 const PLACEMENT_ANCHOR = { x: 196, y: 420 }
 const PLACEMENT_BG_PARALLAX = 0.12
 const PLACEMENT_BG_MAX_DRIFT = { x: 36, y: 24 }
@@ -971,36 +971,18 @@ function PanningPlacementScene({
 
 function PlacementContent() {
   return (
-    <div className="placement-content" id="placement-instructions">
+    <div className="placement-content">
       <h1>Place Your Sticker</h1>
-      <p>Pick where your sticker belongs on the van and celebrate how far you’ve come.</p>
-      <p>Drag the van to position it under your sticker.</p>
+      <p>Drag your van to adjust the view, then tap where you want to place the sticker.</p>
     </div>
   )
 }
 
-function PlacementActions({
-  onPlace,
-  onSaveForLater,
-  canPlace,
-}: {
-  onPlace: () => void
-  onSaveForLater: () => void
-  canPlace: boolean
-}) {
+function PlacementActions({ onPlace }: { onPlace: () => void }) {
   return (
     <div className="placement-actions">
-      <button
-        type="button"
-        className="place-sticker-button"
-        onClick={onPlace}
-        disabled={!canPlace}
-        aria-describedby="placement-instructions"
-      >
+      <button type="button" className="place-sticker-button" onClick={onPlace}>
         Place Sticker
-      </button>
-      <button type="button" className="save-for-later-button" onClick={onSaveForLater}>
-        Save For Later
       </button>
     </div>
   )
@@ -1012,14 +994,12 @@ function PlaceStickerScreen({
   isTransitioning = false,
   transitionStage = 'idle',
   onContinue,
-  onSaveForLater,
 }: {
   sticker: StickerSet
   stickerRef: (element: HTMLImageElement | null) => void
   isTransitioning?: boolean
   transitionStage?: TransitionStage
   onContinue: () => void
-  onSaveForLater: () => void
 }) {
   const alphaCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const [panOffset, setPanOffset] = useState<PanOffset>(() =>
@@ -1053,11 +1033,7 @@ function PlaceStickerScreen({
       />
       <div className="placement-panel">
         <PlacementContent />
-        <PlacementActions
-          onPlace={handlePlace}
-          onSaveForLater={onSaveForLater}
-          canPlace={canPlace}
-        />
+        <PlacementActions onPlace={handlePlace} />
       </div>
       <StatusBar dark />
     </div>
@@ -1422,7 +1398,6 @@ function App() {
             isTransitioning={isTransitioning}
             transitionStage={stage}
             onContinue={handleContinueToDriveOff}
-            onSaveForLater={handleSaveForLater}
           />
         ) : null}
         {screen === 'driveOff' || screen === 'placement' ? (
