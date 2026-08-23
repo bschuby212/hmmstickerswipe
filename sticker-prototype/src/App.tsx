@@ -29,7 +29,14 @@ const VAN_INITIAL_LEFT = -292
 const VAN_WIDTH = 939
 const VAN_HEIGHT = 533
 const SCENE_WIDTH = 393
-const STICKER_DEFAULT_POSITION = { x: 431, y: 358 }
+const PLACEMENT_STICKER_WIDTH = 49
+
+type PanOffset = {
+  x: number
+  y: number
+}
+
+const PLACEMENT_INITIAL_PAN: PanOffset = { x: 50, y: -12 }
 // Coordinates are measured in the van artwork display size. This keeps the
 // sticker on the painted blue body from the rear bumper through the front bumper,
 // below the windows and above the wheel wells.
@@ -38,14 +45,19 @@ const STICKER_HALF_HEIGHT = 23
 const VAN_BODY_BOTTOM_Y = 358
 const PLACEMENT_ZOOM = 1.05
 const VAN_TOP = 31
-const PLACEMENT_ANCHOR = { x: 196, y: 396 }
 const PLACEMENT_BG_PARALLAX = 0.12
 const PLACEMENT_BG_MAX_DRIFT = { x: 36, y: 24 }
 
-type PanOffset = {
-  x: number
-  y: number
+function getVanCenterScenePoint(pan: PanOffset): { x: number; y: number } {
+  const vanLeft = VAN_INITIAL_LEFT * PLACEMENT_ZOOM + pan.x
+  const vanTop = VAN_TOP * PLACEMENT_ZOOM + pan.y
+  return {
+    x: vanLeft + (VAN_WIDTH * PLACEMENT_ZOOM) / 2,
+    y: vanTop + (VAN_HEIGHT * PLACEMENT_ZOOM) / 2,
+  }
 }
+
+const PLACEMENT_ANCHOR = getVanCenterScenePoint(PLACEMENT_INITIAL_PAN)
 
 function getPlacementPanLimits() {
   const stickerPanYMin =
@@ -59,9 +71,13 @@ function getPlacementPanLimits() {
       max: PLACEMENT_ANCHOR.x - (VAN_INITIAL_LEFT + STICKER_BOUNDS.minX) * PLACEMENT_ZOOM,
     },
     y: {
-      // Keep the fixed anchor on the blue body — never below the panel or under the van.
+      // Keep the fixed anchor on the blue body while dragging — but allow the
+      // rested frame so the sticker can drop onto the van center first.
       min: Math.max(stickerPanYMin, bodyPanYMin),
-      max: PLACEMENT_ANCHOR.y - (VAN_TOP + STICKER_BOUNDS.minY) * PLACEMENT_ZOOM,
+      max: Math.max(
+        PLACEMENT_ANCHOR.y - (VAN_TOP + STICKER_BOUNDS.minY) * PLACEMENT_ZOOM,
+        PLACEMENT_INITIAL_PAN.y,
+      ),
     },
   }
 }
@@ -153,18 +169,25 @@ function clamp01(value: number) {
 function readSavedStickerPosition(): StickerPosition {
   try {
     const raw = sessionStorage.getItem('selectedStickerPosition')
-    if (!raw) return STICKER_DEFAULT_POSITION
+    if (!raw) return clampStickerPosition(stickerPositionFromPan(PLACEMENT_INITIAL_PAN))
     const parsed = JSON.parse(raw) as Partial<StickerPosition>
     if (typeof parsed.x !== 'number' || typeof parsed.y !== 'number') {
-      return STICKER_DEFAULT_POSITION
+      return clampStickerPosition(stickerPositionFromPan(PLACEMENT_INITIAL_PAN))
     }
     return clampStickerPosition({
       x: parsed.x,
       y: parsed.y,
     })
   } catch {
-    return STICKER_DEFAULT_POSITION
+    return clampStickerPosition(stickerPositionFromPan(PLACEMENT_INITIAL_PAN))
   }
+}
+
+function getInitialPlacementPan(): PanOffset {
+  if (!sessionStorage.getItem('selectedStickerPosition')) {
+    return clampPanOffset(PLACEMENT_INITIAL_PAN)
+  }
+  return clampPanOffset(panFromStickerPosition(readSavedStickerPosition()))
 }
 
 /** Map placement van coords → % left/top on the drive-off wrap body panel. */
@@ -1002,9 +1025,7 @@ function PlaceStickerScreen({
   onContinue: () => void
 }) {
   const alphaCanvasRef = useRef<HTMLCanvasElement | null>(null)
-  const [panOffset, setPanOffset] = useState<PanOffset>(() =>
-    clampPanOffset(panFromStickerPosition(readSavedStickerPosition())),
-  )
+  const [panOffset, setPanOffset] = useState<PanOffset>(() => getInitialPlacementPan())
   const [vanReady, setVanReady] = useState(false)
 
   const stickerPosition = stickerPositionFromPan(panOffset)
@@ -1119,6 +1140,18 @@ type StickerRect = {
   top: number
   width: number
   height: number
+}
+
+function getPlacementDropTargetRect(pan: PanOffset, stickerAspect: number): StickerRect {
+  const center = getVanCenterScenePoint(pan)
+  const width = PLACEMENT_STICKER_WIDTH
+  const height = width / stickerAspect
+  return {
+    left: center.x - width / 2,
+    top: center.y - height / 2,
+    width,
+    height,
+  }
 }
 
 const LIFT_DISTANCE = 152
@@ -1273,16 +1306,12 @@ function App() {
   useLayoutEffect(() => {
     if (stage !== 'lifting' && stage !== 'crossfading') return
     const source = sourceStickerRef.current
-    const target = targetStickerRef.current
-    const phone = (source ?? target)?.closest('.phone-screen')?.getBoundingClientRect()
-    if (!phone) return
-    setOverlayRects((current) => {
-      const sourceRect = source ? measureArtwork(source, phone) : current?.source
-      if (!sourceRect) return current
-      const targetRect = target
-        ? measureArtwork(target, phone, sourceRect.width / sourceRect.height)
-        : current?.target
-      if (!targetRect) return current
+    const phone = source?.closest('.phone-screen')?.getBoundingClientRect()
+    if (!phone || !source) return
+    setOverlayRects(() => {
+      const sourceRect = measureArtwork(source, phone)
+      const aspect = sourceRect.width / sourceRect.height
+      const targetRect = getPlacementDropTargetRect(getInitialPlacementPan(), aspect)
       return { source: sourceRect, target: targetRect }
     })
   }, [stage])
