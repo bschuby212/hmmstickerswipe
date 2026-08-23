@@ -3,6 +3,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type RefObject,
   type CSSProperties,
   type PointerEvent,
 } from 'react'
@@ -24,22 +25,166 @@ import driveOffCoast from './assets/drive-off/coast.png'
 import driveOffVan from './assets/drive-off/side-van.png'
 import './App.css'
 
-const VAN_INITIAL_LEFT = -330
-const VAN_WIDTH = 1062
-const VAN_HEIGHT = 603
+const VAN_INITIAL_LEFT = -292
+const VAN_WIDTH = 939
+const VAN_HEIGHT = 533
 const SCENE_WIDTH = 393
-const VAN_VISIBLE_MIN = 140
-const STICKER_DEFAULT_POSITION = { x: 487, y: 376 }
+const VAN_SCENE_HEIGHT = 539
+const PLACEMENT_STICKER_WIDTH = 49
+const PLACEMENT_ZOOM = 1.05
+const VAN_TOP = 31
+
+type PanOffset = {
+  x: number
+  y: number
+}
+
+const PLACEMENT_STICKER_REST_OFFSET_Y = 32
+const PLACEMENT_VAN_REST_OFFSET_Y = 48
+const PLACEMENT_ANCHOR = {
+  x: SCENE_WIDTH / 2,
+  y: VAN_SCENE_HEIGHT / 2 + PLACEMENT_STICKER_REST_OFFSET_Y,
+}
+
+function panToCenterVanInScene(): PanOffset {
+  const vanCenterY = VAN_SCENE_HEIGHT / 2 + PLACEMENT_VAN_REST_OFFSET_Y
+  return {
+    x:
+      PLACEMENT_ANCHOR.x -
+      VAN_INITIAL_LEFT * PLACEMENT_ZOOM -
+      (VAN_WIDTH * PLACEMENT_ZOOM) / 2,
+    y:
+      vanCenterY -
+      VAN_TOP * PLACEMENT_ZOOM -
+      (VAN_HEIGHT * PLACEMENT_ZOOM) / 2,
+  }
+}
+
+const PLACEMENT_INITIAL_PAN = panToCenterVanInScene()
 // Coordinates are measured in the van artwork display size. This keeps the
-// sticker on the painted body from the rear bumper through the front bumper,
+// sticker on the painted blue body from the rear bumper through the front bumper,
 // below the windows and above the wheel wells.
-const STICKER_BOUNDS = { minX: 101, maxX: 984, minY: 331, maxY: 432 }
+const STICKER_BOUNDS = { minX: 89, maxX: 870, minY: 309, maxY: 358 }
+const STICKER_HALF_HEIGHT = 23
+const VAN_BODY_BOTTOM_Y = 358
+const PLACEMENT_BG_PARALLAX = 0.12
+const PLACEMENT_BG_MAX_DRIFT = { x: 36, y: 24 }
+
+function getVanCenterScenePoint(pan: PanOffset): { x: number; y: number } {
+  const vanLeft = VAN_INITIAL_LEFT * PLACEMENT_ZOOM + pan.x
+  const vanTop = VAN_TOP * PLACEMENT_ZOOM + pan.y
+  return {
+    x: vanLeft + (VAN_WIDTH * PLACEMENT_ZOOM) / 2,
+    y: vanTop + (VAN_HEIGHT * PLACEMENT_ZOOM) / 2,
+  }
+}
+
+function getPlacementPanLimits() {
+  const stickerPanYMin =
+    PLACEMENT_ANCHOR.y - (VAN_TOP + STICKER_BOUNDS.maxY) * PLACEMENT_ZOOM
+  const bodyPanYMin =
+    PLACEMENT_ANCHOR.y - (VAN_TOP + VAN_BODY_BOTTOM_Y) * PLACEMENT_ZOOM
+
+  return {
+    x: {
+      min: PLACEMENT_ANCHOR.x - (VAN_INITIAL_LEFT + STICKER_BOUNDS.maxX) * PLACEMENT_ZOOM,
+      max: Math.max(
+        PLACEMENT_ANCHOR.x - (VAN_INITIAL_LEFT + STICKER_BOUNDS.minX) * PLACEMENT_ZOOM,
+        PLACEMENT_INITIAL_PAN.x,
+      ),
+    },
+    y: {
+      // Keep the fixed anchor on the blue body while dragging — but allow the
+      // rested frame so the sticker can drop onto the van center first.
+      min: Math.max(stickerPanYMin, bodyPanYMin),
+      max: Math.max(
+        PLACEMENT_ANCHOR.y - (VAN_TOP + STICKER_BOUNDS.minY) * PLACEMENT_ZOOM,
+        PLACEMENT_INITIAL_PAN.y,
+      ),
+    },
+  }
+}
+
+function stickerPositionFromPan(pan: PanOffset): StickerPosition {
+  return {
+    x: (PLACEMENT_ANCHOR.x - pan.x) / PLACEMENT_ZOOM - VAN_INITIAL_LEFT,
+    y: (PLACEMENT_ANCHOR.y - pan.y) / PLACEMENT_ZOOM - VAN_TOP,
+  }
+}
+
+function panFromStickerPosition(position: StickerPosition): PanOffset {
+  return {
+    x: PLACEMENT_ANCHOR.x - (VAN_INITIAL_LEFT + position.x) * PLACEMENT_ZOOM,
+    y: PLACEMENT_ANCHOR.y - (VAN_TOP + position.y) * PLACEMENT_ZOOM,
+  }
+}
+
+function clampPanOffset(pan: PanOffset): PanOffset {
+  const limits = getPlacementPanLimits()
+  return {
+    x: Math.max(limits.x.min, Math.min(limits.x.max, pan.x)),
+    y: Math.max(limits.y.min, Math.min(limits.y.max, pan.y)),
+  }
+}
+
+function backgroundPanFromVanPan(pan: PanOffset): PanOffset {
+  return {
+    x: Math.max(
+      -PLACEMENT_BG_MAX_DRIFT.x,
+      Math.min(PLACEMENT_BG_MAX_DRIFT.x, pan.x * PLACEMENT_BG_PARALLAX),
+    ),
+    y: Math.max(
+      -PLACEMENT_BG_MAX_DRIFT.y,
+      Math.min(PLACEMENT_BG_MAX_DRIFT.y, pan.y * PLACEMENT_BG_PARALLAX),
+    ),
+  }
+}
+
+function isBodyPaintPixel(r: number, g: number, b: number, a: number) {
+  return a >= 20 && b > 95 && b > r + 25 && b > g + 10
+}
+
+function isBodyPaintAt(vanX: number, vanY: number, canvas: HTMLCanvasElement | null) {
+  if (!canvas) return false
+  const x = Math.floor((vanX / VAN_WIDTH) * canvas.width)
+  const y = Math.floor((vanY / VAN_HEIGHT) * canvas.height)
+  if (x < 0 || y < 0 || x >= canvas.width || y >= canvas.height) return false
+  const pixel = canvas.getContext('2d')?.getImageData(x, y, 1, 1).data
+  return Boolean(pixel && isBodyPaintPixel(pixel[0], pixel[1], pixel[2], pixel[3]))
+}
+
+function clampStickerPosition(position: StickerPosition): StickerPosition {
+  return {
+    x: Math.max(STICKER_BOUNDS.minX, Math.min(STICKER_BOUNDS.maxX, position.x)),
+    y: Math.max(STICKER_BOUNDS.minY, Math.min(STICKER_BOUNDS.maxY, position.y)),
+  }
+}
+
+function isStickerPositionInBounds(position: StickerPosition): boolean {
+  return (
+    position.x >= STICKER_BOUNDS.minX &&
+    position.x <= STICKER_BOUNDS.maxX &&
+    position.y >= STICKER_BOUNDS.minY &&
+    position.y <= STICKER_BOUNDS.maxY
+  )
+}
+
+function isValidStickerPosition(
+  position: StickerPosition,
+  canvas: HTMLCanvasElement | null,
+) {
+  const clamped = clampStickerPosition(position)
+  if (clamped.x !== position.x || clamped.y !== position.y) return false
+  if (!isBodyPaintAt(position.x, position.y, canvas)) return false
+  if (!isBodyPaintAt(position.x, position.y - STICKER_HALF_HEIGHT, canvas)) return false
+  return isBodyPaintAt(position.x, position.y + STICKER_HALF_HEIGHT, canvas)
+}
 // Matching body panel on `.drive-off-van-wrap` (percent of the cropped wrap).
 const DRIVE_OFF_STICKER_BOUNDS = {
   minLeft: 8.7,
   maxLeft: 91.5,
-  minTop: 47.3,
-  maxTop: 61.7,
+  minTop: 63,
+  maxTop: 69,
 }
 
 type StickerPosition = {
@@ -56,18 +201,42 @@ function clamp01(value: number) {
 function readSavedStickerPosition(): StickerPosition {
   try {
     const raw = sessionStorage.getItem('selectedStickerPosition')
-    if (!raw) return STICKER_DEFAULT_POSITION
+    if (!raw) return stickerPositionFromPan(PLACEMENT_INITIAL_PAN)
     const parsed = JSON.parse(raw) as Partial<StickerPosition>
     if (typeof parsed.x !== 'number' || typeof parsed.y !== 'number') {
-      return STICKER_DEFAULT_POSITION
+      return stickerPositionFromPan(PLACEMENT_INITIAL_PAN)
     }
-    return {
-      x: Math.max(STICKER_BOUNDS.minX, Math.min(STICKER_BOUNDS.maxX, parsed.x)),
-      y: Math.max(STICKER_BOUNDS.minY, Math.min(STICKER_BOUNDS.maxY, parsed.y)),
+    const position = { x: parsed.x, y: parsed.y }
+    if (!isStickerPositionInBounds(position)) {
+      return stickerPositionFromPan(PLACEMENT_INITIAL_PAN)
+    }
+    return position
+  } catch {
+    return stickerPositionFromPan(PLACEMENT_INITIAL_PAN)
+  }
+}
+
+function getInitialPlacementPan(): PanOffset {
+  if (!sessionStorage.getItem('selectedStickerPosition')) {
+    return clampPanOffset(PLACEMENT_INITIAL_PAN)
+  }
+  try {
+    const raw = sessionStorage.getItem('selectedStickerPosition')
+    if (!raw) return clampPanOffset(PLACEMENT_INITIAL_PAN)
+    const parsed = JSON.parse(raw) as Partial<StickerPosition>
+    if (
+      typeof parsed.x !== 'number' ||
+      typeof parsed.y !== 'number' ||
+      !isStickerPositionInBounds({ x: parsed.x, y: parsed.y })
+    ) {
+      sessionStorage.removeItem('selectedStickerPosition')
+      return clampPanOffset(PLACEMENT_INITIAL_PAN)
     }
   } catch {
-    return STICKER_DEFAULT_POSITION
+    sessionStorage.removeItem('selectedStickerPosition')
+    return clampPanOffset(PLACEMENT_INITIAL_PAN)
   }
+  return clampPanOffset(panFromStickerPosition(readSavedStickerPosition()))
 }
 
 /** Map placement van coords → % left/top on the drive-off wrap body panel. */
@@ -763,100 +932,37 @@ function StickerSelectionScreen({
   )
 }
 
-function clampVanOffset(offset: number) {
-  const left = VAN_INITIAL_LEFT + offset
-  const minLeft = VAN_VISIBLE_MIN - VAN_WIDTH
-  const maxLeft = SCENE_WIDTH - VAN_VISIBLE_MIN
-  const clampedLeft = Math.max(minLeft, Math.min(maxLeft, left))
-  return clampedLeft - VAN_INITIAL_LEFT
-}
-
-function PlacedSticker({
+function PanningPlacementScene({
   sticker,
   stickerRef,
-  position,
+  panOffset,
+  onPanOffsetChange,
+  alphaCanvasRef,
+  onVanReady,
+  faded = false,
 }: {
   sticker: StickerSet
   stickerRef: (element: HTMLImageElement | null) => void
-  position: StickerPosition
+  panOffset: PanOffset
+  onPanOffsetChange: (pan: PanOffset) => void
+  alphaCanvasRef: RefObject<HTMLCanvasElement | null>
+  onVanReady?: () => void
+  faded?: boolean
 }) {
-  return (
-    <img
-      ref={stickerRef}
-      className="placed-sticker"
-      src={sticker.stickerArt}
-      alt={`${sticker.title} on the van`}
-      draggable={false}
-      style={{ left: position.x, top: position.y }}
-    />
-  )
-}
-
-function DraggableVan({
-  sticker,
-  stickerRef,
-  stickerPosition,
-  onStickerPositionChange,
-  locked = false,
-}: {
-  sticker: StickerSet
-  stickerRef: (element: HTMLImageElement | null) => void
-  stickerPosition: StickerPosition
-  onStickerPositionChange: (position: StickerPosition) => void
-  locked?: boolean
-}) {
-  const [offset, setOffset] = useState(0)
   const [isDragging, setIsDragging] = useState(false)
-  const offsetRef = useRef(0)
   const gesture = useRef<{
     startX: number
     startY: number
-    startOffset: number
+    startPan: PanOffset
     dragging: boolean
   } | null>(null)
-  const vanWrapperRef = useRef<HTMLDivElement | null>(null)
-  const vanRef = useRef<HTMLImageElement | null>(null)
-  const alphaCanvas = useRef<HTMLCanvasElement | null>(null)
-
-  const hitTestsVan = (clientX: number, clientY: number) => {
-    const image = vanRef.current
-    const canvas = alphaCanvas.current
-    if (!image || !canvas) return false
-    const box = image.getBoundingClientRect()
-    if (
-      clientX < box.left ||
-      clientX > box.right ||
-      clientY < box.top ||
-      clientY > box.bottom
-    ) {
-      return false
-    }
-    const x = Math.floor(((clientX - box.left) / box.width) * image.naturalWidth)
-    const y = Math.floor(((clientY - box.top) / box.height) * image.naturalHeight)
-    const pixel = canvas.getContext('2d')?.getImageData(x, y, 1, 1).data
-    return Boolean(pixel && pixel[3] >= 20)
-  }
-
-  const stickerPositionFor = (clientX: number, clientY: number): StickerPosition | null => {
-    const wrapper = vanWrapperRef.current
-    if (!wrapper) return null
-    const box = wrapper.getBoundingClientRect()
-    const x = ((clientX - box.left) / box.width) * VAN_WIDTH
-    const y = ((clientY - box.top) / box.height) * VAN_HEIGHT
-    return {
-      x: Math.max(STICKER_BOUNDS.minX, Math.min(STICKER_BOUNDS.maxX, x)),
-      y: Math.max(STICKER_BOUNDS.minY, Math.min(STICKER_BOUNDS.maxY, y)),
-    }
-  }
 
   const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
-    if (locked) return
-    if (!hitTestsVan(event.clientX, event.clientY)) return
     event.currentTarget.setPointerCapture(event.pointerId)
     gesture.current = {
       startX: event.clientX,
       startY: event.clientY,
-      startOffset: offsetRef.current,
+      startPan: panOffset,
       dragging: false,
     }
   }
@@ -869,92 +975,68 @@ function DraggableVan({
     if (!current.dragging && Math.hypot(dx, dy) < 8) return
     current.dragging = true
     setIsDragging(true)
-    const next = clampVanOffset(current.startOffset + dx)
-    offsetRef.current = next
-    setOffset(next)
+    onPanOffsetChange(
+      clampPanOffset({
+        x: current.startPan.x + dx,
+        y: current.startPan.y + dy,
+      }),
+    )
   }
 
-  const endGesture = (event: PointerEvent<HTMLDivElement>) => {
-    const current = gesture.current
-    if (!current) return
-    if (!current.dragging && !locked) {
-      const position = stickerPositionFor(event.clientX, event.clientY)
-      if (position) onStickerPositionChange(position)
-    }
+  const endGesture = () => {
     gesture.current = null
     setIsDragging(false)
   }
 
-  const cancelGesture = () => {
-    gesture.current = null
-    setIsDragging(false)
-  }
+  const bgPan = backgroundPanFromVanPan(panOffset)
+  const vanTransform = `translate3d(${panOffset.x}px, ${panOffset.y}px, 0) scale(${PLACEMENT_ZOOM})`
+  const bgTransform = `translate3d(${bgPan.x}px, ${bgPan.y}px, 0) scale(${PLACEMENT_ZOOM})`
 
   return (
-    <>
-      <canvas ref={alphaCanvas} className="alpha-canvas" aria-hidden />
+    <section
+      className={`van-scene${faded ? ' van-scene--faded' : ''}`}
+      aria-label="Campground scene"
+    >
+      <div className="placement-bg-layer" style={{ transform: bgTransform }} aria-hidden>
+        <img className="campground" src={campground} alt="" draggable={false} />
+      </div>
       <div
-        ref={vanWrapperRef}
-        className={`van-transform${isDragging ? ' van-transform--dragging' : ''}${locked ? ' van-transform--locked' : ''}`}
-        style={{ transform: `translate3d(${offset}px, 0, 0)` }}
+        className={`placement-van-layer${isDragging ? ' placement-van-layer--dragging' : ''}`}
+        style={{ transform: vanTransform }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={endGesture}
-        onPointerCancel={cancelGesture}
+        onPointerCancel={endGesture}
       >
         <img
-          ref={vanRef}
           className="van"
           src={vanArt}
           alt="Blue camper van"
           draggable={false}
           onLoad={(event) => {
             const image = event.currentTarget
-            const canvas = alphaCanvas.current
+            const canvas = alphaCanvasRef.current
             if (!canvas) return
             canvas.width = image.naturalWidth
             canvas.height = image.naturalHeight
             canvas.getContext('2d')?.drawImage(image, 0, 0)
+            onVanReady?.()
           }}
         />
-        <PlacedSticker
-          sticker={sticker}
-          stickerRef={stickerRef}
-          position={stickerPosition}
+      </div>
+      <canvas ref={alphaCanvasRef} className="alpha-canvas" aria-hidden />
+      <div
+        className="placement-sticker-anchor"
+        style={{ left: PLACEMENT_ANCHOR.x, top: PLACEMENT_ANCHOR.y }}
+      >
+        <img
+          ref={stickerRef}
+          className="placed-sticker placed-sticker--anchor"
+          src={sticker.stickerArt}
+          alt={`${sticker.title} on the van`}
+          draggable={false}
         />
       </div>
-    </>
-  )
-}
-
-function VanScene({
-  sticker,
-  stickerRef,
-  stickerPosition,
-  onStickerPositionChange,
-  faded = false,
-  locked = false,
-}: {
-  sticker: StickerSet
-  stickerRef: (element: HTMLImageElement | null) => void
-  stickerPosition: StickerPosition
-  onStickerPositionChange: (position: StickerPosition) => void
-  faded?: boolean
-  locked?: boolean
-}) {
-  return (
-    <section
-      className={`van-scene${faded ? ' van-scene--faded' : ''}${locked ? ' van-scene--placed' : ''}`}
-      aria-label="Campground scene"
-    >
-      <img className="campground" src={campground} alt="" draggable={false} />
-      <DraggableVan
-        sticker={sticker}
-        stickerRef={stickerRef}
-        stickerPosition={stickerPosition}
-        onStickerPositionChange={onStickerPositionChange}
-        locked={locked}
-      />
     </section>
   )
 }
@@ -968,11 +1050,20 @@ function PlacementContent() {
   )
 }
 
-function PlacementActions({ onPlace }: { onPlace: () => void }) {
+function PlacementActions({
+  onPlace,
+  onSaveForLater,
+}: {
+  onPlace: () => void
+  onSaveForLater: () => void
+}) {
   return (
     <div className="placement-actions">
       <button type="button" className="place-sticker-button" onClick={onPlace}>
         Place Sticker
+      </button>
+      <button type="button" className="save-for-later-button" onClick={onSaveForLater}>
+        Save For Later
       </button>
     </div>
   )
@@ -984,20 +1075,30 @@ function PlaceStickerScreen({
   isTransitioning = false,
   transitionStage = 'idle',
   onContinue,
+  onSaveForLater,
 }: {
   sticker: StickerSet
   stickerRef: (element: HTMLImageElement | null) => void
   isTransitioning?: boolean
   transitionStage?: TransitionStage
   onContinue: () => void
+  onSaveForLater: () => void
 }) {
-  const [stickerPosition, setStickerPosition] = useState<StickerPosition>(
-    readSavedStickerPosition,
-  )
+  const alphaCanvasRef = useRef<HTMLCanvasElement | null>(null)
+  const [panOffset, setPanOffset] = useState<PanOffset>(() => getInitialPlacementPan())
+  const [vanReady, setVanReady] = useState(false)
+
+  const stickerPosition = stickerPositionFromPan(panOffset)
+  const canPlace =
+    vanReady && isValidStickerPosition(stickerPosition, alphaCanvasRef.current)
 
   const handlePlace = () => {
+    if (!canPlace) return
     sessionStorage.setItem('selectedStickerId', sticker.id)
-    sessionStorage.setItem('selectedStickerPosition', JSON.stringify(stickerPosition))
+    sessionStorage.setItem(
+      'selectedStickerPosition',
+      JSON.stringify(clampStickerPosition(stickerPosition)),
+    )
     onContinue()
   }
 
@@ -1005,38 +1106,45 @@ function PlaceStickerScreen({
     <div
       className={`placement-screen${isTransitioning ? ' placement-screen--transitioning' : ''} placement-screen--${transitionStage}`}
     >
-      <VanScene
+      <PanningPlacementScene
         sticker={sticker}
         stickerRef={stickerRef}
-        stickerPosition={stickerPosition}
-        onStickerPositionChange={setStickerPosition}
+        panOffset={panOffset}
+        onPanOffsetChange={setPanOffset}
+        alphaCanvasRef={alphaCanvasRef}
+        onVanReady={() => setVanReady(true)}
         faded
-        locked={false}
       />
       <div className="placement-panel">
         <PlacementContent />
-        <PlacementActions onPlace={handlePlace} />
+        <PlacementActions onPlace={handlePlace} onSaveForLater={onSaveForLater} />
       </div>
       <StatusBar dark />
     </div>
   )
 }
 
-const DRIVE_OFF_DURATION_MS = 2800
+const DRIVE_OFF_DURATION_MS = 2200
 
 function DriveOffScreen({
   sticker,
   onComplete,
   onChangePlacement,
+  preloading = false,
 }: {
   sticker: StickerSet
   onComplete: () => void
   onChangePlacement: () => void
+  preloading?: boolean
 }) {
   const [driving, setDriving] = useState(false)
   const stickerPercent = stickerPositionToDriveOffPercent(readSavedStickerPosition())
   const onCompleteRef = useRef(onComplete)
   onCompleteRef.current = onComplete
+
+  useEffect(() => {
+    if (preloading) setDriving(false)
+  }, [preloading])
 
   useEffect(() => {
     if (!driving) return
@@ -1049,7 +1157,11 @@ function DriveOffScreen({
   }, [driving])
 
   return (
-    <div className="drive-off-screen" aria-label="Van driving off">
+    <div
+      className={`drive-off-screen${preloading ? ' drive-off-screen--preloading' : ''}`}
+      aria-hidden={preloading}
+      aria-label="Van driving off"
+    >
       <img className="drive-off-coast" src={driveOffCoast} alt="" draggable={false} />
       <div className={`drive-off-van-wrap${driving ? ' drive-off-van-wrap--driving' : ''}`}>
         <img className="drive-off-van" src={driveOffVan} alt="" draggable={false} />
@@ -1091,6 +1203,18 @@ type StickerRect = {
   top: number
   width: number
   height: number
+}
+
+function getPlacementDropTargetRect(pan: PanOffset, stickerAspect: number): StickerRect {
+  const center = getVanCenterScenePoint(pan)
+  const width = PLACEMENT_STICKER_WIDTH
+  const height = width / stickerAspect
+  return {
+    left: center.x - width / 2,
+    top: center.y - height / 2,
+    width,
+    height,
+  }
 }
 
 const LIFT_DISTANCE = 152
@@ -1190,6 +1314,7 @@ function App() {
     return getStickerById(savedId ?? '')?.id ?? 'hike'
   })
   const [stage, setStage] = useState<TransitionStage>('idle')
+  const [placementEntryId, setPlacementEntryId] = useState(0)
   const [overlayRects, setOverlayRects] = useState<{ source: StickerRect; target: StickerRect } | null>(null)
   const sourceStickerRef = useRef<HTMLImageElement | null>(null)
   const targetStickerRef = useRef<HTMLImageElement | null>(null)
@@ -1245,16 +1370,12 @@ function App() {
   useLayoutEffect(() => {
     if (stage !== 'lifting' && stage !== 'crossfading') return
     const source = sourceStickerRef.current
-    const target = targetStickerRef.current
-    const phone = (source ?? target)?.closest('.phone-screen')?.getBoundingClientRect()
-    if (!phone) return
-    setOverlayRects((current) => {
-      const sourceRect = source ? measureArtwork(source, phone) : current?.source
-      if (!sourceRect) return current
-      const targetRect = target
-        ? measureArtwork(target, phone, sourceRect.width / sourceRect.height)
-        : current?.target
-      if (!targetRect) return current
+    const phone = source?.closest('.phone-screen')?.getBoundingClientRect()
+    if (!phone || !source) return
+    setOverlayRects(() => {
+      const sourceRect = measureArtwork(source, phone)
+      const aspect = sourceRect.width / sourceRect.height
+      const targetRect = getPlacementDropTargetRect(getInitialPlacementPan(), aspect)
       return { source: sourceRect, target: targetRect }
     })
   }, [stage])
@@ -1307,6 +1428,8 @@ function App() {
     const sticker = stickerSets[activeIndex]
     setSelectedStickerId(sticker.id)
     sessionStorage.setItem('selectedStickerId', sticker.id)
+    sessionStorage.removeItem('selectedStickerPosition')
+    setPlacementEntryId((entryId) => entryId + 1)
     setStage('lifting')
 
     const crossfadeAt = LIFT_DURATION
@@ -1362,7 +1485,7 @@ function App() {
         ) : null}
         {screen === 'placement' || isTransitioning ? (
           <PlaceStickerScreen
-            key={`${selectedStickerId}-placement`}
+            key={`placement-${placementEntryId}`}
             sticker={selectedSticker}
             stickerRef={(element) => {
               targetStickerRef.current = element
@@ -1370,13 +1493,15 @@ function App() {
             isTransitioning={isTransitioning}
             transitionStage={stage}
             onContinue={handleContinueToDriveOff}
+            onSaveForLater={handleSaveForLater}
           />
         ) : null}
-        {screen === 'driveOff' ? (
+        {screen === 'driveOff' || screen === 'placement' ? (
           <DriveOffScreen
             sticker={selectedSticker}
             onComplete={handleDriveOffComplete}
             onChangePlacement={handleChangePlacement}
+            preloading={screen === 'placement'}
           />
         ) : null}
         <StickerTransitionOverlay
