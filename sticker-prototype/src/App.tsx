@@ -973,7 +973,8 @@ function PlacementContent() {
   return (
     <div className="placement-content">
       <h1>Place Your Sticker</h1>
-      <p>Drag your van to adjust the view, then tap where you want to place the sticker.</p>
+      <p>Pick where your sticker belongs on the van and celebrate how far you've come.</p>
+      <p>Drag the van to position it under your sticker.</p>
     </div>
   )
 }

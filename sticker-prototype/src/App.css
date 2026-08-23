@@ -114,7 +114,7 @@
   opacity: 0.37;
   filter: saturate(0.85);
   transition: opacity 320ms ease-out, filter 320ms ease-out, width 320ms ease-out;
-  width: 54px;
+  width: 49px;
 }
 .van-scene--placed .placed-sticker {
   opacity: 1;
@@ -168,7 +168,7 @@
 .placed-sticker--anchor {
   position: static;
   transform: none;
-  width: 54px;
+  width: 49px;
 }
 .campground {
   position: absolute;
