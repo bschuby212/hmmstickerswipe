@@ -31,9 +31,38 @@ const SCENE_WIDTH = 393
 const VAN_VISIBLE_MIN = 140
 const STICKER_DEFAULT_POSITION = { x: 487, y: 376 }
 // Coordinates are measured in the van artwork display size. This keeps the
-// sticker on the painted body from the rear bumper through the front bumper,
+// sticker on the painted blue body from the rear bumper through the front bumper,
 // below the windows and above the wheel wells.
-const STICKER_BOUNDS = { minX: 101, maxX: 984, minY: 331, maxY: 432 }
+const STICKER_BOUNDS = { minX: 101, maxX: 984, minY: 310, maxY: 432 }
+
+function isBodyPaintPixel(r: number, g: number, b: number, a: number) {
+  return a >= 20 && b > 95 && b > r + 25 && b > g + 10
+}
+
+function isBodyPaintAt(vanX: number, vanY: number, canvas: HTMLCanvasElement | null) {
+  if (!canvas) return false
+  const x = Math.floor((vanX / VAN_WIDTH) * canvas.width)
+  const y = Math.floor((vanY / VAN_HEIGHT) * canvas.height)
+  if (x < 0 || y < 0 || x >= canvas.width || y >= canvas.height) return false
+  const pixel = canvas.getContext('2d')?.getImageData(x, y, 1, 1).data
+  return Boolean(pixel && isBodyPaintPixel(pixel[0], pixel[1], pixel[2], pixel[3]))
+}
+
+function clampStickerPosition(position: StickerPosition): StickerPosition {
+  return {
+    x: Math.max(STICKER_BOUNDS.minX, Math.min(STICKER_BOUNDS.maxX, position.x)),
+    y: Math.max(STICKER_BOUNDS.minY, Math.min(STICKER_BOUNDS.maxY, position.y)),
+  }
+}
+
+function isValidStickerPosition(
+  position: StickerPosition,
+  canvas: HTMLCanvasElement | null,
+) {
+  const clamped = clampStickerPosition(position)
+  if (clamped.x !== position.x || clamped.y !== position.y) return false
+  return isBodyPaintAt(position.x, position.y, canvas)
+}
 // Matching body panel on `.drive-off-van-wrap` (percent of the cropped wrap).
 const DRIVE_OFF_STICKER_BOUNDS = {
   minLeft: 8.7,
@@ -61,10 +90,10 @@ function readSavedStickerPosition(): StickerPosition {
     if (typeof parsed.x !== 'number' || typeof parsed.y !== 'number') {
       return STICKER_DEFAULT_POSITION
     }
-    return {
-      x: Math.max(STICKER_BOUNDS.minX, Math.min(STICKER_BOUNDS.maxX, parsed.x)),
-      y: Math.max(STICKER_BOUNDS.minY, Math.min(STICKER_BOUNDS.maxY, parsed.y)),
-    }
+    return clampStickerPosition({
+      x: parsed.x,
+      y: parsed.y,
+    })
   } catch {
     return STICKER_DEFAULT_POSITION
   }
@@ -841,12 +870,12 @@ function DraggableVan({
     const wrapper = vanWrapperRef.current
     if (!wrapper) return null
     const box = wrapper.getBoundingClientRect()
-    const x = ((clientX - box.left) / box.width) * VAN_WIDTH
-    const y = ((clientY - box.top) / box.height) * VAN_HEIGHT
-    return {
-      x: Math.max(STICKER_BOUNDS.minX, Math.min(STICKER_BOUNDS.maxX, x)),
-      y: Math.max(STICKER_BOUNDS.minY, Math.min(STICKER_BOUNDS.maxY, y)),
+    const position = {
+      x: ((clientX - box.left) / box.width) * VAN_WIDTH,
+      y: ((clientY - box.top) / box.height) * VAN_HEIGHT,
     }
+    if (!isValidStickerPosition(position, alphaCanvas.current)) return null
+    return position
   }
 
   const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
