@@ -4,7 +4,6 @@ import {
   useRef,
   useState,
   type CSSProperties,
-  type KeyboardEvent,
   type PointerEvent,
 } from 'react'
 import {
@@ -772,74 +771,22 @@ function clampVanOffset(offset: number) {
   return clampedLeft - VAN_INITIAL_LEFT
 }
 
-const STICKER_NUDGE = 8
-const STICKER_NUDGE_FAST = 24
-const STICKER_VIEW_PADDING = 48
-
-function clampStickerPosition(position: StickerPosition): StickerPosition {
-  return {
-    x: Math.max(STICKER_BOUNDS.minX, Math.min(STICKER_BOUNDS.maxX, position.x)),
-    y: Math.max(STICKER_BOUNDS.minY, Math.min(STICKER_BOUNDS.maxY, position.y)),
-  }
-}
-
 function PlacedSticker({
   sticker,
   stickerRef,
   position,
-  interactive = false,
-  dragging = false,
-  onPointerDown,
-  onPointerMove,
-  onPointerUp,
-  onPointerCancel,
-  onKeyDown,
 }: {
   sticker: StickerSet
   stickerRef: (element: HTMLImageElement | null) => void
   position: StickerPosition
-  interactive?: boolean
-  dragging?: boolean
-  onPointerDown?: (event: PointerEvent<HTMLImageElement>) => void
-  onPointerMove?: (event: PointerEvent<HTMLImageElement>) => void
-  onPointerUp?: (event: PointerEvent<HTMLImageElement>) => void
-  onPointerCancel?: () => void
-  onKeyDown?: (event: KeyboardEvent<HTMLImageElement>) => void
 }) {
   return (
     <img
       ref={stickerRef}
-      className={`placed-sticker${interactive ? ' placed-sticker--interactive' : ''}${
-        dragging ? ' placed-sticker--dragging' : ''
-      }`}
+      className="placed-sticker"
       src={sticker.stickerArt}
       alt={`${sticker.title} on the van`}
       draggable={false}
-      tabIndex={interactive ? 0 : undefined}
-      role={interactive ? 'slider' : undefined}
-      aria-label={
-        interactive
-          ? `${sticker.title}. Drag or use arrow keys to place this sticker on the van.`
-          : undefined
-      }
-      aria-valuemin={interactive ? STICKER_BOUNDS.minX : undefined}
-      aria-valuemax={interactive ? STICKER_BOUNDS.maxX : undefined}
-      aria-valuenow={interactive ? Math.round(position.x) : undefined}
-      aria-valuetext={
-        interactive
-          ? `Along the van body, ${Math.round(
-              ((position.x - STICKER_BOUNDS.minX) /
-                (STICKER_BOUNDS.maxX - STICKER_BOUNDS.minX)) *
-                100,
-            )} percent from the rear`
-          : undefined
-      }
-      aria-orientation={interactive ? 'horizontal' : undefined}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={onPointerCancel}
-      onKeyDown={onKeyDown}
       style={{ left: position.x, top: position.y }}
     />
   )
@@ -861,98 +808,122 @@ function DraggableVan({
   const [offset, setOffset] = useState(0)
   const [isDragging, setIsDragging] = useState(false)
   const offsetRef = useRef(0)
-  const draggingRef = useRef(false)
+  const gesture = useRef<{
+    startX: number
+    startY: number
+    startOffset: number
+    dragging: boolean
+  } | null>(null)
   const vanWrapperRef = useRef<HTMLDivElement | null>(null)
+  const vanRef = useRef<HTMLImageElement | null>(null)
+  const alphaCanvas = useRef<HTMLCanvasElement | null>(null)
+
+  const hitTestsVan = (clientX: number, clientY: number) => {
+    const image = vanRef.current
+    const canvas = alphaCanvas.current
+    if (!image || !canvas) return false
+    const box = image.getBoundingClientRect()
+    if (
+      clientX < box.left ||
+      clientX > box.right ||
+      clientY < box.top ||
+      clientY > box.bottom
+    ) {
+      return false
+    }
+    const x = Math.floor(((clientX - box.left) / box.width) * image.naturalWidth)
+    const y = Math.floor(((clientY - box.top) / box.height) * image.naturalHeight)
+    const pixel = canvas.getContext('2d')?.getImageData(x, y, 1, 1).data
+    return Boolean(pixel && pixel[3] >= 20)
+  }
 
   const stickerPositionFor = (clientX: number, clientY: number): StickerPosition | null => {
     const wrapper = vanWrapperRef.current
     if (!wrapper) return null
     const box = wrapper.getBoundingClientRect()
-    return clampStickerPosition({
-      x: ((clientX - box.left) / box.width) * VAN_WIDTH,
-      y: ((clientY - box.top) / box.height) * VAN_HEIGHT,
-    })
-  }
-
-  const panToKeepStickerVisible = (position: StickerPosition) => {
-    const screenX = VAN_INITIAL_LEFT + offsetRef.current + position.x
-    let nextOffset = offsetRef.current
-    if (screenX < STICKER_VIEW_PADDING) {
-      nextOffset = clampVanOffset(offsetRef.current + (STICKER_VIEW_PADDING - screenX))
-    } else if (screenX > SCENE_WIDTH - STICKER_VIEW_PADDING) {
-      nextOffset = clampVanOffset(
-        offsetRef.current - (screenX - (SCENE_WIDTH - STICKER_VIEW_PADDING)),
-      )
-    }
-    if (nextOffset !== offsetRef.current) {
-      offsetRef.current = nextOffset
-      setOffset(nextOffset)
+    const x = ((clientX - box.left) / box.width) * VAN_WIDTH
+    const y = ((clientY - box.top) / box.height) * VAN_HEIGHT
+    return {
+      x: Math.max(STICKER_BOUNDS.minX, Math.min(STICKER_BOUNDS.maxX, x)),
+      y: Math.max(STICKER_BOUNDS.minY, Math.min(STICKER_BOUNDS.maxY, y)),
     }
   }
 
-  const moveSticker = (position: StickerPosition) => {
-    const next = clampStickerPosition(position)
-    onStickerPositionChange(next)
-    panToKeepStickerVisible(next)
-  }
-
-  const onStickerPointerDown = (event: PointerEvent<HTMLImageElement>) => {
+  const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
     if (locked) return
-    event.stopPropagation()
+    if (!hitTestsVan(event.clientX, event.clientY)) return
     event.currentTarget.setPointerCapture(event.pointerId)
-    draggingRef.current = true
+    gesture.current = {
+      startX: event.clientX,
+      startY: event.clientY,
+      startOffset: offsetRef.current,
+      dragging: false,
+    }
+  }
+
+  const onPointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    const current = gesture.current
+    if (!current) return
+    const dx = event.clientX - current.startX
+    const dy = event.clientY - current.startY
+    if (!current.dragging && Math.hypot(dx, dy) < 8) return
+    current.dragging = true
     setIsDragging(true)
-    moveSticker(stickerPositionFor(event.clientX, event.clientY) ?? stickerPosition)
+    const next = clampVanOffset(current.startOffset + dx)
+    offsetRef.current = next
+    setOffset(next)
   }
 
-  const onStickerPointerMove = (event: PointerEvent<HTMLImageElement>) => {
-    if (!draggingRef.current) return
-    const position = stickerPositionFor(event.clientX, event.clientY)
-    if (position) moveSticker(position)
-  }
-
-  const endStickerGesture = () => {
-    draggingRef.current = false
+  const endGesture = (event: PointerEvent<HTMLDivElement>) => {
+    const current = gesture.current
+    if (!current) return
+    if (!current.dragging && !locked) {
+      const position = stickerPositionFor(event.clientX, event.clientY)
+      if (position) onStickerPositionChange(position)
+    }
+    gesture.current = null
     setIsDragging(false)
   }
 
-  const onStickerKeyDown = (event: KeyboardEvent<HTMLImageElement>) => {
-    if (locked) return
-    const step = event.shiftKey ? STICKER_NUDGE_FAST : STICKER_NUDGE
-    const delta = {
-      ArrowLeft: { x: -step, y: 0 },
-      ArrowRight: { x: step, y: 0 },
-      ArrowUp: { x: 0, y: -step },
-      ArrowDown: { x: 0, y: step },
-    }[event.key]
-    if (!delta) return
-    event.preventDefault()
-    moveSticker({
-      x: stickerPosition.x + delta.x,
-      y: stickerPosition.y + delta.y,
-    })
+  const cancelGesture = () => {
+    gesture.current = null
+    setIsDragging(false)
   }
 
   return (
-    <div
-      ref={vanWrapperRef}
-      className={`van-transform${isDragging ? ' van-transform--dragging' : ''}${locked ? ' van-transform--locked' : ''}`}
-      style={{ transform: `translate3d(${offset}px, 0, 0)` }}
-    >
-      <img className="van" src={vanArt} alt="Blue camper van" draggable={false} />
-      <PlacedSticker
-        sticker={sticker}
-        stickerRef={stickerRef}
-        position={stickerPosition}
-        interactive={!locked}
-        dragging={isDragging}
-        onPointerDown={onStickerPointerDown}
-        onPointerMove={onStickerPointerMove}
-        onPointerUp={endStickerGesture}
-        onPointerCancel={endStickerGesture}
-        onKeyDown={onStickerKeyDown}
-      />
-    </div>
+    <>
+      <canvas ref={alphaCanvas} className="alpha-canvas" aria-hidden />
+      <div
+        ref={vanWrapperRef}
+        className={`van-transform${isDragging ? ' van-transform--dragging' : ''}${locked ? ' van-transform--locked' : ''}`}
+        style={{ transform: `translate3d(${offset}px, 0, 0)` }}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={endGesture}
+        onPointerCancel={cancelGesture}
+      >
+        <img
+          ref={vanRef}
+          className="van"
+          src={vanArt}
+          alt="Blue camper van"
+          draggable={false}
+          onLoad={(event) => {
+            const image = event.currentTarget
+            const canvas = alphaCanvas.current
+            if (!canvas) return
+            canvas.width = image.naturalWidth
+            canvas.height = image.naturalHeight
+            canvas.getContext('2d')?.drawImage(image, 0, 0)
+          }}
+        />
+        <PlacedSticker
+          sticker={sticker}
+          stickerRef={stickerRef}
+          position={stickerPosition}
+        />
+      </div>
+    </>
   )
 }
 
@@ -974,7 +945,7 @@ function VanScene({
   return (
     <section
       className={`van-scene${faded ? ' van-scene--faded' : ''}${locked ? ' van-scene--placed' : ''}`}
-      aria-label="Place your sticker on the van"
+      aria-label="Campground scene"
     >
       <img className="campground" src={campground} alt="" draggable={false} />
       <DraggableVan
@@ -993,7 +964,7 @@ function PlacementContent() {
     <div className="placement-content" id="placement-instructions">
       <h1>Place Your Sticker</h1>
       <p>You’ve picked your sticker. Now choose where it lives on the van.</p>
-      <p>Drag it along the side until the placement feels right, then tap Place Sticker when you’re ready.</p>
+      <p>Drag the van to adjust the view, then tap where you want your sticker to go.</p>
     </div>
   )
 }
@@ -1045,6 +1016,7 @@ function PlaceStickerScreen({
         stickerRef={stickerRef}
         stickerPosition={stickerPosition}
         onStickerPositionChange={setStickerPosition}
+        faded
         locked={false}
       />
       <div className="placement-panel">

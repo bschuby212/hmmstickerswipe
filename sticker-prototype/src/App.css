@@ -152,12 +152,12 @@
   height: 603px;
   max-width: none;
   display: block;
-  cursor: default;
+  cursor: grab;
   touch-action: none;
   user-select: none;
   -webkit-user-drag: none;
-  pointer-events: none;
 }
+.van:active { cursor: grabbing; }
 .placed-sticker {
   position: absolute;
   transform: translate(-50%, -50%);
@@ -169,23 +169,6 @@
   user-select: none;
   -webkit-user-drag: none;
   transition: left 200ms cubic-bezier(.22,.8,.28,1), top 200ms cubic-bezier(.22,.8,.28,1);
-}
-.placed-sticker--interactive {
-  pointer-events: auto;
-  cursor: grab;
-  touch-action: none;
-}
-.placed-sticker--dragging,
-.placed-sticker--interactive:active {
-  cursor: grabbing;
-}
-.placed-sticker--interactive:focus {
-  outline: none;
-}
-.placed-sticker--interactive:focus-visible {
-  outline: 2px solid #765cd8;
-  outline-offset: 4px;
-  border-radius: 4px;
 }
 .van-transform--dragging .placed-sticker {
   transition: none;
