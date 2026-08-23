@@ -29,22 +29,38 @@ const VAN_INITIAL_LEFT = -292
 const VAN_WIDTH = 939
 const VAN_HEIGHT = 533
 const SCENE_WIDTH = 393
+const VAN_SCENE_HEIGHT = 539
 const PLACEMENT_STICKER_WIDTH = 49
+const PLACEMENT_ZOOM = 1.05
+const VAN_TOP = 31
 
 type PanOffset = {
   x: number
   y: number
 }
 
-const PLACEMENT_INITIAL_PAN: PanOffset = { x: 50, y: -12 }
+const PLACEMENT_SCENE_CENTER = { x: SCENE_WIDTH / 2, y: VAN_SCENE_HEIGHT / 2 }
+
+function panToCenterVanInScene(): PanOffset {
+  return {
+    x:
+      PLACEMENT_SCENE_CENTER.x -
+      VAN_INITIAL_LEFT * PLACEMENT_ZOOM -
+      (VAN_WIDTH * PLACEMENT_ZOOM) / 2,
+    y:
+      PLACEMENT_SCENE_CENTER.y -
+      VAN_TOP * PLACEMENT_ZOOM -
+      (VAN_HEIGHT * PLACEMENT_ZOOM) / 2,
+  }
+}
+
+const PLACEMENT_INITIAL_PAN = panToCenterVanInScene()
 // Coordinates are measured in the van artwork display size. This keeps the
 // sticker on the painted blue body from the rear bumper through the front bumper,
 // below the windows and above the wheel wells.
 const STICKER_BOUNDS = { minX: 89, maxX: 870, minY: 309, maxY: 358 }
 const STICKER_HALF_HEIGHT = 23
 const VAN_BODY_BOTTOM_Y = 358
-const PLACEMENT_ZOOM = 1.05
-const VAN_TOP = 31
 const PLACEMENT_BG_PARALLAX = 0.12
 const PLACEMENT_BG_MAX_DRIFT = { x: 36, y: 24 }
 
@@ -57,7 +73,7 @@ function getVanCenterScenePoint(pan: PanOffset): { x: number; y: number } {
   }
 }
 
-const PLACEMENT_ANCHOR = getVanCenterScenePoint(PLACEMENT_INITIAL_PAN)
+const PLACEMENT_ANCHOR = PLACEMENT_SCENE_CENTER
 
 function getPlacementPanLimits() {
   const stickerPanYMin =
@@ -68,7 +84,10 @@ function getPlacementPanLimits() {
   return {
     x: {
       min: PLACEMENT_ANCHOR.x - (VAN_INITIAL_LEFT + STICKER_BOUNDS.maxX) * PLACEMENT_ZOOM,
-      max: PLACEMENT_ANCHOR.x - (VAN_INITIAL_LEFT + STICKER_BOUNDS.minX) * PLACEMENT_ZOOM,
+      max: Math.max(
+        PLACEMENT_ANCHOR.x - (VAN_INITIAL_LEFT + STICKER_BOUNDS.minX) * PLACEMENT_ZOOM,
+        PLACEMENT_INITIAL_PAN.x,
+      ),
     },
     y: {
       // Keep the fixed anchor on the blue body while dragging — but allow the
