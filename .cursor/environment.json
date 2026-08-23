@@ -1,0 +1,11 @@
+{
+  "name": "hmmstickerswipe",
+  "install": "npm ci --prefix sticker-prototype",
+  "start": "npm --prefix sticker-prototype run dev -- --host 0.0.0.0 --port 5173",
+  "ports": [
+    {
+      "name": "web",
+      "port": 5173
+    }
+  ]
+}
