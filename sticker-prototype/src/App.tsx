@@ -33,8 +33,9 @@ const STICKER_DEFAULT_POSITION = { x: 431, y: 332 }
 // Coordinates are measured in the van artwork display size. This keeps the
 // sticker on the painted blue body from the rear bumper through the front bumper,
 // below the windows and above the wheel wells.
-const STICKER_BOUNDS = { minX: 89, maxX: 870, minY: 309, maxY: 371 }
+const STICKER_BOUNDS = { minX: 89, maxX: 870, minY: 309, maxY: 358 }
 const STICKER_HALF_HEIGHT = 23
+const VAN_BODY_BOTTOM_Y = 358
 const PLACEMENT_ZOOM = 1.05
 const VAN_TOP = 47
 const PLACEMENT_ANCHOR = { x: 196, y: 420 }
@@ -47,13 +48,19 @@ type PanOffset = {
 }
 
 function getPlacementPanLimits() {
+  const stickerPanYMin =
+    PLACEMENT_ANCHOR.y - (VAN_TOP + STICKER_BOUNDS.maxY) * PLACEMENT_ZOOM
+  const bodyPanYMin =
+    PLACEMENT_ANCHOR.y - (VAN_TOP + VAN_BODY_BOTTOM_Y) * PLACEMENT_ZOOM
+
   return {
     x: {
       min: PLACEMENT_ANCHOR.x - (VAN_INITIAL_LEFT + STICKER_BOUNDS.maxX) * PLACEMENT_ZOOM,
       max: PLACEMENT_ANCHOR.x - (VAN_INITIAL_LEFT + STICKER_BOUNDS.minX) * PLACEMENT_ZOOM,
     },
     y: {
-      min: PLACEMENT_ANCHOR.y - (VAN_TOP + STICKER_BOUNDS.maxY) * PLACEMENT_ZOOM,
+      // Keep the fixed anchor on the blue body — never below the panel or under the van.
+      min: Math.max(stickerPanYMin, bodyPanYMin),
       max: PLACEMENT_ANCHOR.y - (VAN_TOP + STICKER_BOUNDS.minY) * PLACEMENT_ZOOM,
     },
   }
@@ -121,7 +128,8 @@ function isValidStickerPosition(
   const clamped = clampStickerPosition(position)
   if (clamped.x !== position.x || clamped.y !== position.y) return false
   if (!isBodyPaintAt(position.x, position.y, canvas)) return false
-  return isBodyPaintAt(position.x, position.y - STICKER_HALF_HEIGHT, canvas)
+  if (!isBodyPaintAt(position.x, position.y - STICKER_HALF_HEIGHT, canvas)) return false
+  return isBodyPaintAt(position.x, position.y + STICKER_HALF_HEIGHT, canvas)
 }
 // Matching body panel on `.drive-off-van-wrap` (percent of the cropped wrap).
 const DRIVE_OFF_STICKER_BOUNDS = {
