@@ -393,7 +393,7 @@
   align-items: flex-start;
   justify-content: space-between;
   box-sizing: border-box;
-  background: rgba(249, 247, 246, 0.9);
+  background: rgba(249, 247, 246, 0.7);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   color: #063235;
