@@ -34,6 +34,15 @@ const STICKER_DEFAULT_POSITION = { x: 487, y: 376 }
 // sticker on the painted body from the rear bumper through the front bumper,
 // below the windows and above the wheel wells.
 const STICKER_BOUNDS = { minX: 101, maxX: 984, minY: 331, maxY: 432 }
+const PLACEMENT_BG_PARALLAX = 0.12
+const PLACEMENT_BG_MAX_DRIFT_X = 36
+
+function backgroundDriftFromVanOffset(offset: number) {
+  return Math.max(
+    -PLACEMENT_BG_MAX_DRIFT_X,
+    Math.min(PLACEMENT_BG_MAX_DRIFT_X, offset * PLACEMENT_BG_PARALLAX),
+  )
+}
 // Matching body panel on `.drive-off-van-wrap` (percent of the cropped wrap).
 const DRIVE_OFF_STICKER_BOUNDS = {
   minLeft: 8.7,
@@ -892,6 +901,14 @@ function DraggableVan({
 
   return (
     <>
+      {/* Drifts with the van drag, so it lives with the offset that drives it. */}
+      <div
+        className="placement-bg-layer"
+        style={{ transform: `translate3d(${backgroundDriftFromVanOffset(offset)}px, 0, 0)` }}
+        aria-hidden
+      >
+        <img className="campground" src={campground} alt="" draggable={false} />
+      </div>
       <canvas ref={alphaCanvas} className="alpha-canvas" aria-hidden />
       <div
         ref={vanWrapperRef}
@@ -947,7 +964,6 @@ function VanScene({
       className={`van-scene${faded ? ' van-scene--faded' : ''}${locked ? ' van-scene--placed' : ''}`}
       aria-label="Campground scene"
     >
-      <img className="campground" src={campground} alt="" draggable={false} />
       <DraggableVan
         sticker={sticker}
         stickerRef={stickerRef}

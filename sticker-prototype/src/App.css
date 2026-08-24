@@ -123,12 +123,20 @@
 .van-transform--locked .van {
   cursor: default;
 }
+.placement-bg-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  will-change: transform;
+  pointer-events: none;
+}
+/* Wider than the 393pt scene so the parallax drift never reaches an edge. */
 .campground {
   position: absolute;
-  left: 0;
-  top: -296px;
-  width: 393px;
-  height: 861px;
+  left: -105px;
+  top: -388px;
+  width: 603px;
+  height: 1072px;
   max-width: none;
   display: block;
   pointer-events: none;
