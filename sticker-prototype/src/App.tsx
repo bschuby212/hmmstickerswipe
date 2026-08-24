@@ -28,7 +28,9 @@ const VAN_INITIAL_LEFT = -330
 const VAN_WIDTH = 1062
 const VAN_HEIGHT = 603
 const SCENE_WIDTH = 393
-const VAN_VISIBLE_MIN = 140
+// Painted van that always stays in frame — ~60% of the scene, so the van can be
+// panned end to end without ever reading as driving off the screen.
+const VAN_VISIBLE_MIN = 240
 // `van.png` is 939px wide with 66px of fully transparent margin either side, so
 // the drag limit has to measure the painted body — clamping the image box left
 // ~75px of empty space on screen and only ~60px of actual van.
