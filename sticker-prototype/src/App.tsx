@@ -29,6 +29,10 @@ const VAN_WIDTH = 1062
 const VAN_HEIGHT = 603
 const SCENE_WIDTH = 393
 const VAN_VISIBLE_MIN = 140
+// `van.png` is 939px wide with 66px of fully transparent margin either side, so
+// the drag limit has to measure the painted body — clamping the image box left
+// ~75px of empty space on screen and only ~60px of actual van.
+const VAN_ART_MARGIN = (66 / 939) * VAN_WIDTH
 const STICKER_DEFAULT_POSITION = { x: 487, y: 376 }
 // Coordinates are measured in the van artwork display size. This keeps the
 // sticker on the painted body from the rear bumper through the front bumper,
@@ -774,8 +778,8 @@ function StickerSelectionScreen({
 
 function clampVanOffset(offset: number) {
   const left = VAN_INITIAL_LEFT + offset
-  const minLeft = VAN_VISIBLE_MIN - VAN_WIDTH
-  const maxLeft = SCENE_WIDTH - VAN_VISIBLE_MIN
+  const minLeft = VAN_VISIBLE_MIN - (VAN_WIDTH - VAN_ART_MARGIN)
+  const maxLeft = SCENE_WIDTH - VAN_VISIBLE_MIN - VAN_ART_MARGIN
   const clampedLeft = Math.max(minLeft, Math.min(maxLeft, left))
   return clampedLeft - VAN_INITIAL_LEFT
 }
